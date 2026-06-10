@@ -6,7 +6,8 @@ import math
 
 import pygame
 
-from settings import CELL, GRID_H, GRID_W, INFO_H, SCREEN_W, STAT_NAMES, TERRAIN, WEAPONS
+from settings import (CELL, GRID_H, GRID_W, INFO_H, SCREEN_H, SCREEN_W,
+                      STAT_NAMES, TERRAIN, WEAPONS)
 
 # 颜色
 COL_PANEL = (28, 30, 44)
