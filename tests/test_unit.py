@@ -49,3 +49,26 @@ def test_heal_caps_at_max():
     u.hp = 15
     u.heal(99)
     assert u.hp == u.max_hp
+
+
+def test_potion_heals_and_consumes():
+    u = make_lord()
+    u.hp = 5
+    assert u.potions == 3
+    assert u.use_potion() == 10        # 回复量
+    assert u.hp == 15 and u.potions == 2
+
+
+def test_potion_caps_at_max_hp():
+    u = make_lord()
+    u.hp = 15
+    assert u.use_potion() == 5         # 只回到满血
+    assert u.hp == u.max_hp
+
+
+def test_potion_empty_returns_zero():
+    u = make_lord()
+    u.hp = 5
+    u.potions = 0
+    assert u.use_potion() == 0
+    assert u.hp == 5

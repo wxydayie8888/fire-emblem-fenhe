@@ -1,13 +1,13 @@
 """单位：属性、经验、升级。纯逻辑，零 pygame 依赖。"""
 import random
 
-from settings import CLASSES, WEAPONS, EXP_LEVEL
+from settings import CLASSES, WEAPONS, EXP_LEVEL, POTION_HEAL, POTION_USES
 
 STATS = ('hp', 'pow', 'skl', 'spd', 'dfn')
 
 
 class Unit:
-    def __init__(self, name, cls, team, pos, boss=False):
+    def __init__(self, name, cls, team, pos, boss=False, ai='aggro'):
         c = CLASSES[cls]
         self.name, self.cls, self.team = name, cls, team
         self.x, self.y = pos
@@ -19,7 +19,9 @@ class Unit:
         self.mounted = c.get('mounted', False)
         self.growth = c['growth']
         self.boss = boss
+        self.ai = ai                 # 'aggro' 主动 / 'guard' 驻守
         self.level, self.exp = 1, 0
+        self.potions = POTION_USES   # 伤药数量
         self.acted = False           # 本回合是否已行动
 
     @property
@@ -62,3 +64,14 @@ class Unit:
 
     def heal(self, amount):
         self.hp = min(self.max_hp, self.hp + amount)
+
+    def use_potion(self):
+        """喝伤药。返回实际回复量（没药或满血返回 0，不消耗）。"""
+        if self.potions <= 0:
+            return 0
+        healed = min(POTION_HEAL, self.max_hp - self.hp)
+        if healed <= 0:
+            return 0
+        self.potions -= 1
+        self.hp += healed
+        return healed

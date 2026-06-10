@@ -45,3 +45,23 @@ def test_boss_stays_put():
     near = Unit('近', 'lord', 'player', (3, 4))
     act = plan_action(boss, g, [boss, far, near])
     assert act['move'] == (3, 3) and act['target'] is near
+
+
+def test_guard_stays_when_player_far():
+    g = Grid(["PPPPPPPPPPPPPP"] * 6)
+    e = Unit('守', 'soldier', 'enemy', (2, 2))
+    e.ai = 'guard'
+    far = Unit('主', 'lord', 'player', (13, 5))
+    act = plan_action(e, g, [e, far])
+    assert act == {'move': (2, 2), 'target': None}
+    assert e.ai == 'guard'             # 未被激活
+
+
+def test_guard_activates_when_player_in_reach():
+    g = Grid(["PPPPPPPPPPPPPP"] * 6)
+    e = Unit('守', 'soldier', 'enemy', (2, 2))
+    e.ai = 'guard'
+    near = Unit('主', 'lord', 'player', (7, 2))   # 移动5+射程1 可及
+    act = plan_action(e, g, [e, near])
+    assert act['target'] is near
+    assert e.ai == 'aggro'             # 永久转为进攻

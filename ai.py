@@ -29,9 +29,10 @@ def plan_action(unit, grid, units):
             if best is None or score > best[0]:
                 best = (score, pos, foe)
     if best is not None:
+        unit.ai = 'aggro'              # 驻守单位接敌后永久转为进攻
         return {'move': best[1], 'target': best[2]}
 
-    if unit.boss:
+    if unit.boss or unit.ai == 'guard':
         return {'move': stay, 'target': None}
     nearest = min(foes, key=lambda f: manhattan(stay, (f.x, f.y)))
     move = min(reach, key=lambda p: (manhattan(p, (nearest.x, nearest.y)), reach[p]))
