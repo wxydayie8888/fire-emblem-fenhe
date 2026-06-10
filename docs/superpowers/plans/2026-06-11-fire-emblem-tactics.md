@@ -17,7 +17,7 @@
 **Files:**
 - Create: `requirements.txt`, `CREDITS.txt`, `tools/fetch_assets.py`
 
-- [ ] **Step 1: 写 requirements 与致谢文件**
+- [x] **Step 1: 写 requirements 与致谢文件**
 
 `requirements.txt`:
 ```
@@ -34,7 +34,7 @@ pytest>=8
 许可: CC-BY 4.0
 ```
 
-- [ ] **Step 2: 写 tools/fetch_assets.py**
+- [x] **Step 2: 写 tools/fetch_assets.py**
 
 ```python
 """一键下载 DawnLike 素材包到 assets/ 目录。"""
@@ -72,17 +72,17 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 3: 安装依赖并运行下载脚本**
+- [x] **Step 3: 安装依赖并运行下载脚本**
 
 Run: `python3 -m pip install -r requirements.txt && python3 tools/fetch_assets.py`
 Expected: 输出「素材就绪: .../assets/...」；`assets/` 下出现 Characters/、Objects/、GUI/ 等目录
 
-- [ ] **Step 4: 记录素材目录结构（执行时）**
+- [x] **Step 4: 记录素材目录结构（执行时）**
 
 Run: `find assets -name "*.png" | head -40`
 把人物图集（如 Characters/Player0.png、Warrior0.png）和地形图集（Objects/Floor.png、Tree0.png 等）的实际路径记下来，Task 7 要用。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add requirements.txt CREDITS.txt tools/fetch_assets.py
@@ -97,7 +97,7 @@ git commit -m "feat: 项目骨架与素材下载脚本"
 - Create: `settings.py`
 - Test: `tests/test_settings.py`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 `tests/test_settings.py`:
 ```python
@@ -123,12 +123,12 @@ def test_units_start_on_passable_tiles():
         assert u['cls'] in settings.CLASSES
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `python3 -m pytest tests/ -v`
 Expected: FAIL（ModuleNotFoundError: settings）
 
-- [ ] **Step 3: 写 settings.py**
+- [x] **Step 3: 写 settings.py**
 
 ```python
 """全部数值常量：尺寸、地形、地图、武器、职业、阵容、规则参数。"""
@@ -229,12 +229,12 @@ CRIT_MULT = 3         # 必杀三倍
 STAT_NAMES = {'hp': 'HP', 'pow': '力量', 'skl': '技巧', 'spd': '速度', 'dfn': '防御'}
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `python3 -m pytest tests/ -v`
 Expected: 3 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add settings.py tests/test_settings.py
@@ -249,7 +249,7 @@ git commit -m "feat: 数值常量与地图数据"
 - Create: `unit.py`
 - Test: `tests/test_unit.py`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 `tests/test_unit.py`:
 ```python
@@ -293,12 +293,12 @@ def test_double_levelup():
     assert u.level == 3 and len(gains) == 2
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `python3 -m pytest tests/test_unit.py -v`
 Expected: FAIL（ModuleNotFoundError: unit）
 
-- [ ] **Step 3: 写 unit.py**
+- [x] **Step 3: 写 unit.py**
 
 ```python
 """单位：属性、经验、升级。纯逻辑，零 pygame 依赖。"""
@@ -367,12 +367,12 @@ class Unit:
         self.hp = min(self.max_hp, self.hp + amount)
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `python3 -m pytest tests/test_unit.py -v`
 Expected: 5 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add unit.py tests/test_unit.py
@@ -387,7 +387,7 @@ git commit -m "feat: 单位与经验升级系统"
 - Create: `combat.py`
 - Test: `tests/test_combat.py`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 `tests/test_combat.py`:
 ```python
@@ -476,12 +476,12 @@ def test_enemy_gains_no_exp():
     assert a not in exp
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `python3 -m pytest tests/test_combat.py -v`
 Expected: FAIL（ModuleNotFoundError: combat）
 
-- [ ] **Step 3: 写 combat.py**
+- [x] **Step 3: 写 combat.py**
 
 ```python
 """战斗结算纯逻辑：克制、伤害、命中、追击、必杀、经验。零 pygame 依赖。"""
@@ -573,12 +573,12 @@ def resolve(att, dfd, dist, att_avoid, def_avoid, rng=random.random):
     return events, exp
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `python3 -m pytest tests/test_combat.py -v`
 Expected: 10 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add combat.py tests/test_combat.py
@@ -593,7 +593,7 @@ git commit -m "feat: 战斗结算（三角克制/追击/必杀/经验）"
 - Create: `grid.py`
 - Test: `tests/test_grid.py`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 `tests/test_grid.py`:
 ```python
@@ -659,12 +659,12 @@ def test_manhattan():
     assert manhattan((0, 0), (3, 4)) == 7
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `python3 -m pytest tests/test_grid.py -v`
 Expected: FAIL（ModuleNotFoundError: grid）
 
-- [ ] **Step 3: 写 grid.py**
+- [x] **Step 3: 写 grid.py**
 
 ```python
 """地图、地形与范围计算（Dijkstra 移动范围 / 曼哈顿攻击范围）。零 pygame 依赖。"""
@@ -745,12 +745,12 @@ def manhattan(a, b):
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `python3 -m pytest tests/test_grid.py -v`
 Expected: 6 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add grid.py tests/test_grid.py
@@ -765,7 +765,7 @@ git commit -m "feat: 地图与移动/攻击范围计算"
 - Create: `ai.py`
 - Test: `tests/test_ai.py`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 `tests/test_ai.py`:
 ```python
@@ -818,12 +818,12 @@ def test_boss_stays_put():
     assert act['move'] == (3, 3) and act['target'] is near
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `python3 -m pytest tests/test_ai.py -v`
 Expected: FAIL（ModuleNotFoundError: ai）
 
-- [ ] **Step 3: 写 ai.py**
+- [x] **Step 3: 写 ai.py**
 
 ```python
 """敌方 AI：择优攻击（期望伤害-反击风险），无目标则逼近最近敌人。零 pygame 依赖。"""
@@ -866,12 +866,12 @@ def plan_action(unit, grid, units):
     return {'move': move, 'target': None}
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `python3 -m pytest tests/ -v`
 Expected: 全部通过（settings/unit/combat/grid/ai 累计 ~25 个用例）
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add ai.py tests/test_ai.py
@@ -887,7 +887,7 @@ git commit -m "feat: 敌方AI（择优攻击/逼近/Boss守点）"
 
 视图层任务：精灵坐标必须对照真实图集确定，本任务定义机制与接口，坐标在执行时填写。
 
-- [ ] **Step 1: 写 assets.py 框架**
+- [x] **Step 1: 写 assets.py 框架**
 
 接口（game/ui 只通过这三个函数拿图）：
 - `load() -> None` — 启动时调用；定位素材基准目录（`assets/` 下递归找含 `Objects/Floor.png` 的目录），缺失时 `raise SystemExit("素材未就绪，请先运行: python3 tools/fetch_assets.py")`
@@ -914,15 +914,15 @@ TERRAIN_SPRITES = {
 }
 ```
 
-- [ ] **Step 2: 写精灵预览模式**
+- [x] **Step 2: 写精灵预览模式**
 
 `python3 assets.py` 直接运行时：开窗口把 8 个职业精灵 + 6 种地形并排渲染并标注名称，用于人工核对坐标。
 
-- [ ] **Step 3: 执行时对照图集填坐标**
+- [x] **Step 3: 执行时对照图集填坐标**
 
 用 Read 工具直接查看 assets/ 下的 PNG 图集，为每个职业/地形挑选坐标；运行预览模式截图核对：8 个职业造型可区分、地形可辨认。
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add assets.py
@@ -936,7 +936,7 @@ git commit -m "feat: DawnLike 素材加载与精灵映射"
 **Files:**
 - Create: `ui.py`
 
-- [ ] **Step 1: 中文字体加载（关键，pygame 默认字体不支持中文）**
+- [x] **Step 1: 中文字体加载（关键，pygame 默认字体不支持中文）**
 
 ```python
 import pygame
@@ -957,7 +957,7 @@ def font(size):
     return _cache[size]
 ```
 
-- [ ] **Step 2: 实现 UI 组件（全部为 `draw_xxx(surface, ...)` 纯绘制函数）**
+- [x] **Step 2: 实现 UI 组件（全部为 `draw_xxx(surface, ...)` 纯绘制函数）**
 
 | 组件 | 签名 | 内容 |
 |------|------|------|
@@ -972,7 +972,7 @@ def font(size):
 | 结局画面 | `draw_end(surf, win)` | 「胜利！」金色 /「败北…」灰色 + 「按 R 重新开始」 |
 | 浮动伤害 | `draw_float_text(surf, text, px, py, t, color)` | 战斗中伤害数字上飘渐隐；MISS 灰色、必杀黄色大字 |
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add ui.py
@@ -986,7 +986,7 @@ git commit -m "feat: UI组件（中文字体/菜单/预测框/升级弹窗）"
 **Files:**
 - Create: `game.py`, `main.py`
 
-- [ ] **Step 1: game.py 状态机**
+- [x] **Step 1: game.py 状态机**
 
 状态表（`self.state`）：
 
@@ -1009,7 +1009,7 @@ git commit -m "feat: UI组件（中文字体/菜单/预测框/升级弹窗）"
 - 所有「取消」操作链完整：右键/ESC 在每个状态都能退回上一步，移动可还原原位置
 - 敌方回合每个动作之间留 300ms 间隔，玩家能看清发生了什么
 
-- [ ] **Step 2: main.py 入口**
+- [x] **Step 2: main.py 入口**
 
 ```python
 """火焰纹章风格战棋 — 入口。操作: 左键选择/确认 右键取消 E结束回合 R重开"""
@@ -1045,16 +1045,16 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 3: 全量测试 + 启动冒烟**
+- [x] **Step 3: 全量测试 + 启动冒烟**
 
 Run: `python3 -m pytest tests/ -v && python3 main.py`
 Expected: 测试全过；窗口打开，地图/单位渲染正常，能完成一次「选人→移动→攻击→结算→敌方回合」循环
 
-- [ ] **Step 4: 截图验收**
+- [x] **Step 4: 截图验收**
 
 对照清单：移动范围蓝色高亮、预测框数值与公式一致、克制方向正确（剑打斧 +15 命中）、升级弹窗出现、敌方回合 AI 主动过桥进攻、要塞回血。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add game.py main.py
@@ -1068,17 +1068,17 @@ git commit -m "feat: 游戏状态机与主循环，整关可玩"
 **Files:**
 - Create: `README.md`
 
-- [ ] **Step 1: 写 README.md**
+- [x] **Step 1: 写 README.md**
 
 内容：游戏截图、安装步骤（pip install → fetch_assets → main.py）、操作说明（左键/右键/E/R）、规则速查（武器三角/地形表/经验）、致谢与许可。
 
-- [ ] **Step 2: 最终验收**
+- [x] **Step 2: 最终验收**
 
 Run: `python3 -m pytest tests/ -v`
 Expected: 全部通过
 手动完整游玩一局打到胜利结局；再故意送掉主角验证失败结局。
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add README.md
