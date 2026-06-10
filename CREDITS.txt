@@ -1,0 +1,5 @@
+本游戏美术素材使用 DawnLike v1.81 (16x16 Universal Rogue-like tileset)
+作者: DragonDePlatino
+调色板: DawnBringer
+来源: https://opengameart.org/content/dawnlike-16x16-universal-rogue-like-tileset-v181
+许可: CC-BY 4.0
