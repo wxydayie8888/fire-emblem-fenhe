@@ -28,6 +28,10 @@ UNIT_SPRITES = {
     'soldier':  ('Player', 2, 12),     # 蓝甲兽人
     'e_archer': ('Humanoid', 4, 8),    # 持弓猎人
     'warrior':  ('Player', 6, 12),     # 红纹萨满兽人(Boss)
+    'myrmidon': ('Humanoid', 0, 4),    # 银盔绿衣剑士(菲尔)
+    'e_myrm':   ('Player', 2, 4),      # 黑衣刀手
+    'shaman':   ('Player', 7, 3),      # 红袍妖术师
+    'general':  ('Player', 5, 3),      # 黑甲将军
 }
 
 # 地形底层图块 (sheet, col, row)；{f} 会替换为动画帧号(0/1)
@@ -38,6 +42,9 @@ TERRAIN_BASE = {
     'T': ('Objects/Floor.png', 8, 7),
     'W': ('Objects/Pit{f}.png', 1, 15),   # 蓝色波纹水面（两帧动画）
     'B': ('Objects/Pit{f}.png', 1, 15),   # 桥下也是水
+    'S': ('Objects/Floor.png', 1, 7),     # 灰砖石板
+    'R': ('Objects/Wall.png', 1, 6),      # 灰砖城墙
+    'G': ('Objects/Floor.png', 1, 7),     # 城门下是石板
 }
 # 地形叠加装饰；'B' 按 variant 区分左右桥头
 TERRAIN_OVERLAY = {
@@ -46,11 +53,13 @@ TERRAIN_OVERLAY = {
     'T': ('Objects/Map0.png', 8, 13),     # 白色城堡
     'B0': ('Objects/Floor.png', 11, 19),  # 木桥左端
     'B1': ('Objects/Floor.png', 13, 19),  # 木桥右端
+    'G': ('Objects/Door0.png', 0, 1),     # 灰色双门
 }
 
 FALLBACK_COLORS = {
     'P': (96, 160, 80), 'F': (40, 110, 60), 'M': (130, 120, 110),
     'W': (70, 120, 200), 'B': (160, 120, 70), 'T': (150, 140, 160),
+    'S': (130, 130, 140), 'R': (90, 90, 100), 'G': (110, 95, 80),
 }
 
 
