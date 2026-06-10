@@ -1,17 +1,20 @@
-"""游戏状态机与回合调度。
+"""游戏状态机：战役流程 + 战斗回合调度。
 
-状态: IDLE→MOVE→MENU→TARGET→FORECAST→COMBAT→(LEVELUP)→IDLE/ENEMY_TURN→END
+流程: TITLE → INTRO → 战斗(IDLE/MOVE/MENU/TARGET/FORECAST/COMBAT/LEVELUP/ENEMY_TURN)
+      → CLEAR → 下一章 INTRO … → COMPLETE；败北 → END(R 重试本章)
 """
+import copy
 import math
 
 import pygame
 
 import assets
 import combat
+import sfx
 import ui
 from ai import plan_action
 from grid import Grid, manhattan, move_range
-from settings import CELL, ENEMY_UNITS, GRID_H, GRID_W, PLAYER_UNITS
+from settings import CELL, CHAPTERS, GRID_H, GRID_W, PLAYER_ROSTER, POTION_USES
 from unit import Unit
 
 EVENT_DUR = 0.55      # 每次攻击动作时长(秒)
@@ -24,20 +27,23 @@ FLOAT_DUR = 0.9
 
 class Game:
     def __init__(self):
-        self.reset()
+        self.full_reset()
 
-    # ---------- 初始化 / 回合调度 ----------
+    # ---------- 战役流程 ----------
 
-    def reset(self):
-        self.grid = Grid()
-        self.units = [Unit(s['name'], s['cls'], 'player', s['pos'])
-                      for s in PLAYER_UNITS]
-        self.units += [Unit(s['name'], s['cls'], 'enemy', s['pos'], boss=s.get('boss', False))
-                       for s in ENEMY_UNITS]
-        self.lord = self.units[0]
+    def full_reset(self):
+        """回到标题画面，重建战役。"""
+        self.chapter_idx = 0
+        self.roster = [Unit(s['name'], s['cls'], 'player', (0, 0)) for s in PLAYER_ROSTER]
+        self.snapshot = None
+        self.units = []
+        self.grid = Grid(CHAPTERS[0]['map'])
         self.turn = 1
-        self.state = 'IDLE'
-        self.win = None
+        self.time = 0.0
+        self._clear_battle_state()
+        self.state = 'TITLE'
+
+    def _clear_battle_state(self):
         self.hover = None
         self.selected = None
         self.move_tiles = {}
@@ -45,6 +51,7 @@ class Game:
         self.orig_pos = None
         self.menu_items, self.menu_rects, self.menu_sel = [], [], 0
         self.targets, self.target, self.fc = [], None, None
+        self.threat, self.threat_unit = set(), None
         self.combat_events, self.combat_idx = [], 0
         self.event_t, self.event_spawned = 0.0, False
         self.hp_display = {}
@@ -55,8 +62,56 @@ class Game:
         self.slide = None      # {'unit','fr','to','t','next'}
         self.floats = []       # {'text','x','y','t','color'}
         self.banner = None     # {'text','color','t'}
-        self.time = 0.0
-        self.start_player_phase(first=True)
+
+    @property
+    def chapter(self):
+        return CHAPTERS[self.chapter_idx]
+
+    @property
+    def lord(self):
+        return self.roster[0]
+
+    def begin_intro(self):
+        self.state = 'INTRO'
+
+    def start_chapter(self, retry=False):
+        ch = self.chapter
+        if retry and self.snapshot is not None:
+            self.roster = copy.deepcopy(self.snapshot)
+        elif not retry:
+            for j in ch['join']:
+                self.roster.append(Unit(j['name'], j['cls'], 'player', j['pos']))
+        positions = list(ch['players']) + [j['pos'] for j in ch['join']]
+        for u, pos in zip(self.roster, positions):
+            u.x, u.y = pos
+            u.hp = u.max_hp            # 休闲模式: 每章开始全员复活满血
+            u.acted = False
+            u.potions = POTION_USES
+        if not retry:
+            self.snapshot = copy.deepcopy(self.roster)
+        enemies = [Unit(e['name'], e['cls'], 'enemy', e['pos'],
+                        boss=e.get('boss', False), ai=e.get('ai', 'aggro'))
+                   for e in ch['enemies']]
+        self.units = self.roster + enemies
+        self.grid = Grid(ch['map'])
+        self.turn = 1
+        self._clear_battle_state()
+        self.show_banner(f'第 {self.turn} 回合  玩家行动', ui.COL_PLAYER)
+        sfx.play('turn')
+        self.state = 'IDLE'
+
+    def chapter_clear(self):
+        sfx.play('victory')
+        self.state = 'CLEAR'
+
+    def next_chapter(self):
+        self.chapter_idx += 1
+        if self.chapter_idx >= len(CHAPTERS):
+            self.state = 'COMPLETE'
+        else:
+            self.begin_intro()
+
+    # ---------- 回合调度 ----------
 
     def alive(self, team=None):
         return [u for u in self.units if u.alive and (team is None or u.team == team)]
@@ -74,18 +129,17 @@ class Game:
         for u in self.alive(team):
             t = self.grid.terrain(u.x, u.y)
             if t['heal'] and u.hp < u.max_hp:
-                amount = max(1, math.ceil(u.max_hp * t['heal']))
-                amount = min(amount, u.max_hp - u.hp)
+                amount = min(max(1, math.ceil(u.max_hp * t['heal'])), u.max_hp - u.hp)
                 u.heal(amount)
                 self.add_float(f'+{amount}', (u.x, u.y), (120, 230, 120))
 
-    def start_player_phase(self, first=False):
-        if not first:
-            self.turn += 1
+    def start_player_phase(self):
+        self.turn += 1
         for u in self.alive('player'):
             u.acted = False
         self.fortress_heal('player')
         self.show_banner(f'第 {self.turn} 回合  玩家行动', ui.COL_PLAYER)
+        sfx.play('turn')
         self.state = 'IDLE'
 
     def start_enemy_phase(self):
@@ -94,6 +148,7 @@ class Game:
         self.clear_selection()
         self.fortress_heal('enemy')
         self.show_banner('敌方行动', ui.COL_ENEMY)
+        sfx.play('turn')
         self.enemy_queue = list(self.alive('enemy'))
         self.enemy_sub = 'banner'
         self.state = 'ENEMY_TURN'
@@ -105,21 +160,37 @@ class Game:
 
     # ---------- 选择 / 范围 ----------
 
-    def select(self, unit):
-        self.selected = unit
-        self.orig_pos = (unit.x, unit.y)
-        self.move_tiles = move_range(unit, self.grid, self.units)
+    def _range_tiles(self, unit, allow_move=True):
+        """unit 的(移动∪攻击)范围。返回 (move_tiles, 攻击边缘)"""
+        tiles = move_range(unit, self.grid, self.units) if allow_move else {(unit.x, unit.y): 0}
         lo, hi = unit.weapon_range
         fringe = set()
-        for (mx, my) in self.move_tiles:
+        for (mx, my) in tiles:
             for dx in range(-hi, hi + 1):
                 for dy in range(-hi, hi + 1):
                     if lo <= abs(dx) + abs(dy) <= hi:
                         p = (mx + dx, my + dy)
-                        if self.grid.in_bounds(*p) and p not in self.move_tiles:
+                        if self.grid.in_bounds(*p) and p not in tiles:
                             fringe.add(p)
-        self.fringe = fringe
+        return tiles, fringe
+
+    def select(self, unit):
+        sfx.play('select')
+        self.threat, self.threat_unit = set(), None
+        self.selected = unit
+        self.orig_pos = (unit.x, unit.y)
+        self.move_tiles, self.fringe = self._range_tiles(unit)
         self.state = 'MOVE'
+
+    def toggle_threat(self, enemy):
+        """待机时点击敌人 → 显示/关闭其威胁范围"""
+        if self.threat_unit is enemy:
+            self.threat, self.threat_unit = set(), None
+            return
+        sfx.play('select')
+        tiles, fringe = self._range_tiles(enemy, allow_move=not enemy.boss)
+        self.threat = set(tiles) | fringe
+        self.threat_unit = enemy
 
     def targets_from(self, unit):
         lo, hi = unit.weapon_range
@@ -128,7 +199,10 @@ class Game:
 
     def enter_menu(self):
         self.targets = self.targets_from(self.selected)
-        self.menu_items = [('攻击', bool(self.targets)), ('待机', True)]
+        u = self.selected
+        self.menu_items = [('攻击', bool(self.targets)),
+                           ('用药', u.potions > 0 and u.hp < u.max_hp),
+                           ('待机', True)]
         self.menu_sel = 0
         self.state = 'MENU'
 
@@ -157,6 +231,11 @@ class Game:
         self.state = 'COMBAT'
 
     def combat_finished(self):
+        # 被打的驻守敌人被激活
+        for ev in self.combat_events:
+            t = ev['target']
+            if t.team == 'enemy' and t.alive and t.ai == 'guard':
+                t.ai = 'aggro'
         for u in list(self.pending_exp):
             if not u.alive:
                 continue
@@ -168,17 +247,25 @@ class Game:
         self.hp_display = {}
         if self.levelups:
             self.levelup_t = 0.0
+            sfx.play('levelup')
             self.state = 'LEVELUP'
         else:
             self.continue_after_combat()
 
+    def _chapter_won(self):
+        enemies = self.alive('enemy')
+        if not enemies:
+            return True
+        if self.chapter['win'] == 'boss':
+            return not any(u.boss for u in enemies)
+        return False
+
     def continue_after_combat(self):
-        if not self.alive('enemy'):
-            self.win = True
-            self.state = 'END'
+        if self._chapter_won():
+            self.chapter_clear()
             return
         if not self.lord.alive or not self.alive('player'):
-            self.win = False
+            sfx.play('defeat')
             self.state = 'END'
             return
         if self.after_combat == 'player':
@@ -225,38 +312,58 @@ class Game:
                         self.menu_sel = i
             return
 
+        click = event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
+        key = event.key if event.type == pygame.KEYDOWN else None
+
+        # --- 流程画面 ---
+        if self.state == 'TITLE':
+            if click or key in (pygame.K_RETURN, pygame.K_SPACE):
+                sfx.play('confirm')
+                self.begin_intro()
+            return
+        if self.state == 'INTRO':
+            if click or key in (pygame.K_RETURN, pygame.K_SPACE):
+                sfx.play('confirm')
+                self.start_chapter()
+            return
+        if self.state == 'CLEAR':
+            if click or key in (pygame.K_RETURN, pygame.K_SPACE):
+                sfx.play('confirm')
+                self.next_chapter()
+            return
+        if self.state == 'COMPLETE':
+            if key == pygame.K_r:
+                self.full_reset()
+            return
         if self.state == 'END':
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
-                self.reset()
+            if key == pygame.K_r:
+                sfx.play('confirm')
+                self.start_chapter(retry=True)
             return
 
-        # 动画进行中不接受操作（升级弹窗除外）
+        # --- 战斗动画进行中不接受操作 ---
         if self.slide or self.state in ('COMBAT', 'ENEMY_TURN'):
-            if self.state == 'COMBAT':
-                return
-            if self.state == 'ENEMY_TURN':
-                return
             return
 
         if self.state == 'LEVELUP':
-            if (event.type == pygame.MOUSEBUTTONDOWN
-                    or (event.type == pygame.KEYDOWN
-                        and event.key in (pygame.K_RETURN, pygame.K_SPACE))):
+            if click or key in (pygame.K_RETURN, pygame.K_SPACE):
                 if self.levelup_t < 1.0:
-                    self.levelup_t = 1.0      # 先跳过动画
+                    self.levelup_t = 1.0       # 先跳过动画
                 else:
                     self.levelups.pop(0)
                     self.levelup_t = 0.0
-                    if not self.levelups:
+                    if self.levelups:
+                        sfx.play('levelup')
+                    else:
                         self.continue_after_combat()
             return
 
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_e and self.state == 'IDLE':
+            if key == pygame.K_e and self.state == 'IDLE':
                 self.start_enemy_phase()
-            elif event.key == pygame.K_ESCAPE:
+            elif key == pygame.K_ESCAPE:
                 self.cancel()
-            elif event.key == pygame.K_RETURN and self.state == 'FORECAST':
+            elif key == pygame.K_RETURN and self.state == 'FORECAST':
                 self.confirm_attack()
             return
 
@@ -268,16 +375,22 @@ class Game:
 
     def cancel(self):
         if self.state == 'MOVE':
+            sfx.play('cancel')
             self.clear_selection()
             self.state = 'IDLE'
         elif self.state == 'MENU':
+            sfx.play('cancel')
             self.selected.x, self.selected.y = self.orig_pos
             self.state = 'MOVE'
         elif self.state == 'TARGET':
+            sfx.play('cancel')
             self.enter_menu()
         elif self.state == 'FORECAST':
+            sfx.play('cancel')
             self.target, self.fc = None, None
             self.state = 'TARGET'
+        elif self.state == 'IDLE' and self.threat_unit is not None:
+            self.threat, self.threat_unit = set(), None
 
     def click(self, pos):
         mx, my = pos
@@ -286,8 +399,16 @@ class Game:
         if self.state == 'MENU':
             for i, r in enumerate(self.menu_rects):
                 if r.collidepoint(pos) and self.menu_items[i][1]:
-                    if self.menu_items[i][0] == '攻击':
+                    label = self.menu_items[i][0]
+                    sfx.play('confirm')
+                    if label == '攻击':
                         self.state = 'TARGET'
+                    elif label == '用药':
+                        healed = self.selected.use_potion()
+                        self.add_float(f'+{healed}', (self.selected.x, self.selected.y),
+                                       (120, 230, 120))
+                        sfx.play('heal')
+                        self.finish_unit()
                     else:
                         self.finish_unit()
                     return
@@ -300,6 +421,10 @@ class Game:
             u = self.unit_at(cell)
             if u and u.team == 'player' and not u.acted:
                 self.select(u)
+            elif u and u.team == 'enemy':
+                self.toggle_threat(u)
+            else:
+                self.threat, self.threat_unit = set(), None
 
         elif self.state == 'MOVE':
             u = self.unit_at(cell)
@@ -307,6 +432,7 @@ class Game:
                 self.select(u)                    # 切换选择
                 return
             if cell in self.move_tiles:
+                sfx.play('confirm')
                 if cell == (self.selected.x, self.selected.y):
                     self.enter_menu()
                 else:
@@ -319,6 +445,7 @@ class Game:
         elif self.state == 'TARGET':
             for t in self.targets:
                 if (t.x, t.y) == cell:
+                    sfx.play('select')
                     self.target = t
                     dist = manhattan((self.selected.x, self.selected.y), cell)
                     self.fc = combat.forecast(
@@ -332,12 +459,15 @@ class Game:
             self.confirm_attack()
 
     def confirm_attack(self):
+        sfx.play('confirm')
         self.start_combat(self.selected, self.target, 'player')
 
     # ---------- 更新 ----------
 
     def update(self, dt):
         self.time += dt
+        if self.state in ('TITLE', 'INTRO', 'COMPLETE'):
+            return
         for f in self.floats:
             f['t'] += dt / FLOAT_DUR
         self.floats = [f for f in self.floats if f['t'] < 1.0]
@@ -381,10 +511,14 @@ class Game:
             self.event_spawned = True
             target = ev['target']
             if not ev['hit']:
+                sfx.play('miss')
                 self.add_float('MISS', (target.x, target.y), (180, 180, 190))
             else:
                 if ev['crit']:
+                    sfx.play('crit')
                     self.add_float('必杀!', (ev['actor'].x, ev['actor'].y), ui.COL_GOLD)
+                else:
+                    sfx.play('hit')
                 self.add_float(str(ev['dmg']), (target.x, target.y), (255, 240, 120))
                 self.hp_display[target] = max(0, self.hp_display.get(target, target.hp) - ev['dmg'])
         if self.event_t >= 1.0:
@@ -401,7 +535,7 @@ class Game:
             tx, ty = self.slide['to']
             px = (fx + (tx - fx) * t) * CELL
             py = (fy + (ty - fy) * t) * CELL
-        if (self.state == 'COMBAT' and self.combat_idx < len(self.combat_events)):
+        if self.state == 'COMBAT' and self.combat_idx < len(self.combat_events):
             ev = self.combat_events[self.combat_idx]
             if ev['actor'] is u:
                 lunge = math.sin(math.pi * min(1.0, self.event_t)) * 10
@@ -413,6 +547,20 @@ class Game:
         return px, py
 
     def draw(self, surf):
+        if self.state == 'TITLE':
+            ui.draw_title(surf, self.time)
+            frame = int(self.time * 2.4)
+            start_x = (720 - len(self.roster) * 84) // 2
+            for i, u in enumerate(self.roster):
+                surf.blit(assets.unit_sprite(u.cls, (frame + i) % 2), (start_x + i * 84, 290))
+            return
+        if self.state == 'INTRO':
+            ui.draw_intro(surf, self.chapter_idx, self.chapter)
+            return
+        if self.state == 'COMPLETE':
+            ui.draw_complete(surf, self.roster)
+            return
+
         water_frame = int(self.time * 1.6) % 2
         for y in range(GRID_H):
             for x in range(GRID_W):
@@ -425,6 +573,8 @@ class Game:
             ui.draw_tiles(surf, self.move_tiles, ui.MOVE_TILE)
         elif self.state in ('TARGET', 'FORECAST'):
             ui.draw_tiles(surf, [(t.x, t.y) for t in self.targets], ui.TARGET_TILE)
+        elif self.state == 'IDLE' and self.threat:
+            ui.draw_tiles(surf, self.threat, ui.ATTACK_TILE)
 
         unit_frame = int(self.time * 2.4)
         for u in self.units:
@@ -439,11 +589,10 @@ class Game:
             surf.blit(sprite, (px, py))
             hp_override = self.hp_display.get(u)
             if hp_override is not None:
-                shown = u.hp
-                u_hp = u.hp
+                real_hp = u.hp
                 u.hp = hp_override
                 ui.draw_hp_bar(surf, u, px, py)
-                u.hp = u_hp
+                u.hp = real_hp
             else:
                 ui.draw_hp_bar(surf, u, px, py)
             if u.boss:
@@ -451,6 +600,8 @@ class Game:
 
         if self.selected and self.state in ('MOVE', 'MENU', 'TARGET', 'FORECAST'):
             ui.draw_cursor(surf, (self.selected.x, self.selected.y), ui.COL_GOLD)
+        if self.threat_unit is not None and self.state == 'IDLE':
+            ui.draw_cursor(surf, (self.threat_unit.x, self.threat_unit.y), ui.COL_ENEMY)
         if self.hover and self.state in ('IDLE', 'MOVE', 'TARGET'):
             ui.draw_cursor(surf, self.hover)
 
@@ -463,6 +614,7 @@ class Game:
                       if self.hover and self.grid.in_bounds(*self.hover) else None)
         ui.draw_info(surf, info_unit, terrain_ch)
         ui.draw_help(surf)
+        ui.draw_objective(surf, self.turn, self.chapter['objective'])
 
         if self.state == 'MENU':
             px = (self.selected.x + 1) * CELL + 4
@@ -476,5 +628,7 @@ class Game:
 
         if self.banner is not None:
             ui.draw_banner(surf, self.banner['text'], self.banner['t'], self.banner['color'])
-        if self.state == 'END':
-            ui.draw_end(surf, self.win)
+        if self.state == 'CLEAR':
+            ui.draw_clear(surf, self.chapter_idx, self.chapter['title'], self.turn)
+        elif self.state == 'END':
+            ui.draw_defeat(surf)

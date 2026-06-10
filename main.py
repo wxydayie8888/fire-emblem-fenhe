@@ -9,10 +9,12 @@ import settings
 
 def main():
     pygame.init()
-    pygame.display.set_caption('火焰纹章·单关演示')
+    pygame.display.set_caption('火焰纹章·芬河战记')
     screen = pygame.display.set_mode((settings.SCREEN_W, settings.SCREEN_H))
     import assets
     assets.load()
+    import sfx
+    sfx.init()
     from game import Game
     clock = pygame.time.Clock()
     game = Game()

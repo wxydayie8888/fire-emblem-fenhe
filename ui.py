@@ -106,6 +106,8 @@ def draw_info(surf, unit, terrain_ch):
         lo, hi = w['range']
         rng = f'{lo}' if lo == hi else f'{lo}-{hi}'
         _text(surf, f'{w["name"]}  威力{w["might"]} 命中{w["hit"]} 射程{rng}', 16, (190, y0 + 40))
+        if unit.team == 'player':
+            _text(surf, f'伤药 ×{unit.potions}', 15, (430, y0 + 12), (120, 220, 120))
     if terrain_ch is not None:
         t = TERRAIN[terrain_ch]
         cost = '不可通行' if t['cost'] is None else f'移动消耗 {t["cost"]}'
@@ -201,6 +203,61 @@ def draw_levelup(surf, unit, gains, t):
     _text(surf, '点击继续', 13, (x + w // 2, y + h - 16), COL_DIM, center=True)
 
 
+# --- 战役流程画面 ---
+
+def draw_title(surf, t):
+    surf.fill((16, 14, 24))
+    _text(surf, '火 焰 纹 章', 64, (SCREEN_W // 2, 150), COL_GOLD, center=True)
+    _text(surf, '— 芬 河 战 记 —', 24, (SCREEN_W // 2, 215), COL_TEXT, center=True)
+    if int(t * 2) % 2 == 0:
+        _text(surf, '点 击 开 始', 22, (SCREEN_W // 2, 430), COL_TEXT, center=True)
+    _text(surf, '左键 选择/确认 · 右键 取消 · E 结束回合', 14,
+          (SCREEN_W // 2, SCREEN_H - 28), (110, 110, 125), center=True)
+
+
+def draw_intro(surf, idx, ch):
+    surf.fill((16, 14, 24))
+    num = '一二三'[idx]
+    _text(surf, f'第 {num} 章', 22, (SCREEN_W // 2, 110), COL_GOLD, center=True)
+    _text(surf, ch['title'], 44, (SCREEN_W // 2, 165), COL_TEXT, center=True)
+    for i, line in enumerate(ch['story']):
+        _text(surf, line, 18, (SCREEN_W // 2, 250 + i * 36), COL_DIM, center=True)
+    _text(surf, f'目标：{ch["objective"]}', 20, (SCREEN_W // 2, 395), COL_GOLD, center=True)
+    _text(surf, '点击进入战斗', 18, (SCREEN_W // 2, 470), COL_TEXT, center=True)
+
+
+def draw_clear(surf, idx, title, turns):
+    veil = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+    veil.fill((10, 10, 16, 180))
+    surf.blit(veil, (0, 0))
+    num = '一二三'[idx]
+    _text(surf, '制 压 ！', 52, (SCREEN_W // 2, GRID_H * CELL // 2 - 50), COL_GOLD, center=True)
+    _text(surf, f'第{num}章「{title}」 用时 {turns} 回合', 20,
+          (SCREEN_W // 2, GRID_H * CELL // 2 + 20), COL_TEXT, center=True)
+    _text(surf, '点击继续', 16, (SCREEN_W // 2, GRID_H * CELL // 2 + 70), COL_DIM, center=True)
+
+
+def draw_complete(surf, roster):
+    surf.fill((16, 14, 24))
+    _text(surf, '战 役 完 结', 52, (SCREEN_W // 2, 120), COL_GOLD, center=True)
+    _text(surf, '黑铁牙盗贼团已被讨伐，芬河重归和平。', 19, (SCREEN_W // 2, 190), COL_TEXT, center=True)
+    _text(surf, '— 最终队伍 —', 16, (SCREEN_W // 2, 250), COL_DIM, center=True)
+    for i, u in enumerate(roster):
+        status = f'{u.name}  {u.cls_name}  Lv{u.level}'
+        color = COL_TEXT if u.alive else (120, 120, 130)
+        _text(surf, status, 18, (SCREEN_W // 2, 290 + i * 30), color, center=True)
+    _text(surf, '感谢游玩！ 按 R 返回标题', 17, (SCREEN_W // 2, SCREEN_H - 60), COL_GOLD, center=True)
+
+
+def draw_objective(surf, turn, text):
+    chip = font(14).render(f'回合 {turn} ｜ {text}', True, COL_TEXT)
+    pad = 6
+    box = pygame.Surface((chip.get_width() + pad * 2, chip.get_height() + pad), pygame.SRCALPHA)
+    box.fill((16, 18, 30, 185))
+    surf.blit(box, (4, 4))
+    surf.blit(chip, (4 + pad, 4 + pad // 2))
+
+
 # --- 回合横幅 / 结局 ---
 
 def draw_banner(surf, text, t, color):
@@ -216,14 +273,12 @@ def draw_banner(surf, text, t, color):
     surf.blit(t_surf, t_surf.get_rect(center=(SCREEN_W // 2, y + h // 2)))
 
 
-def draw_end(surf, win):
+def draw_defeat(surf):
     veil = pygame.Surface((SCREEN_W, GRID_H * CELL), pygame.SRCALPHA)
     veil.fill((10, 10, 16, 170))
     surf.blit(veil, (0, 0))
-    text = '胜 利 ！' if win else '败 北 …'
-    color = COL_GOLD if win else (180, 180, 190)
-    _text(surf, text, 52, (SCREEN_W // 2, GRID_H * CELL // 2 - 20), color, center=True)
-    _text(surf, '按 R 重新开始', 18, (SCREEN_W // 2, GRID_H * CELL // 2 + 40), COL_DIM, center=True)
+    _text(surf, '败 北 …', 52, (SCREEN_W // 2, GRID_H * CELL // 2 - 20), (180, 180, 190), center=True)
+    _text(surf, '按 R 重试本章（保留升级）', 18, (SCREEN_W // 2, GRID_H * CELL // 2 + 40), COL_DIM, center=True)
 
 
 # --- 浮动文字（伤害/回血/MISS） ---
