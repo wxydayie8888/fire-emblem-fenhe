@@ -4,6 +4,8 @@ import random
 from settings import CLASSES, WEAPONS, EXP_LEVEL, POTION_HEAL, POTION_USES
 
 STATS = ('hp', 'pow', 'skl', 'spd', 'dfn')
+# 存档只保留可变属性；mov/weapon/growth/mounted 由职业表派生
+SAVE_FIELDS = ('name', 'cls', 'level', 'exp', 'max_hp', 'pow', 'skl', 'spd', 'dfn')
 
 
 class Unit:
@@ -64,6 +66,19 @@ class Unit:
 
     def heal(self, amount):
         self.hp = min(self.max_hp, self.hp + amount)
+
+    def to_dict(self):
+        """序列化为存档字典（仅 SAVE_FIELDS）。"""
+        return {f: getattr(self, f) for f in SAVE_FIELDS}
+
+    @classmethod
+    def from_dict(cls_, d):
+        """从存档字典重建我方单位（满血、职业派生属性取自职业表）。"""
+        u = cls_(d['name'], d['cls'], 'player', (0, 0))
+        for f in SAVE_FIELDS[2:]:
+            setattr(u, f, d[f])
+        u.hp = u.max_hp
+        return u
 
     def use_potion(self):
         """喝伤药。返回实际回复量（没药或满血返回 0，不消耗）。"""

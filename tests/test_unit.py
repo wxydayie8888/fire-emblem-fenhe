@@ -72,3 +72,23 @@ def test_potion_empty_returns_zero():
     u.potions = 0
     assert u.use_potion() == 0
     assert u.hp == 5
+
+
+def test_to_dict_only_save_fields():
+    u = make_lord()
+    u.gain_exp(140, rng=lambda: 0.0)   # Lv2 全成长, exp 40
+    d = u.to_dict()
+    assert d == {'name': '罗伊', 'cls': 'lord', 'level': 2, 'exp': 40,
+                 'max_hp': 21, 'pow': 7, 'skl': 9, 'spd': 10, 'dfn': 6}
+
+
+def test_from_dict_roundtrip():
+    u = make_lord()
+    u.gain_exp(250, rng=lambda: 0.0)
+    u.hp = 3                            # 受伤状态不应被存档保留
+    r = Unit.from_dict(u.to_dict())
+    assert r.to_dict() == u.to_dict()
+    assert r.hp == r.max_hp             # 读档满血
+    assert r.team == 'player'
+    # 职业派生属性来自职业表，不来自存档
+    assert r.mov == 5 and r.weapon == 'sword' and r.growth
