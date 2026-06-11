@@ -6,7 +6,9 @@ def test_prologue_epilogue_pages():
     for pages in (story.PROLOGUE, story.EPILOGUE):
         assert pages and isinstance(pages, list)
         for page in pages:
-            assert page and all(isinstance(line, str) and line for line in page)
+            # 行允许为空字符串（排版空行），但每页必须有实际内容
+            assert any(line for line in page)
+            assert all(isinstance(line, str) for line in page)
 
 
 def _check_lines(lines):
