@@ -206,14 +206,25 @@ def draw_levelup(surf, unit, gains, t):
 
 # --- 战役流程画面 ---
 
-def draw_title(surf, t):
+def draw_title_menu(surf, items, summary):
+    """标题画面菜单。items: [(label, enabled)]。返回各项 rect。"""
     surf.fill((16, 14, 24))
-    _text(surf, '火 焰 纹 章', 64, (SCREEN_W // 2, 150), COL_GOLD, center=True)
-    _text(surf, '— 芬 河 战 记 —', 24, (SCREEN_W // 2, 215), COL_TEXT, center=True)
-    if int(t * 2) % 2 == 0:
-        _text(surf, '点 击 开 始', 22, (SCREEN_W // 2, 430), COL_TEXT, center=True)
-    _text(surf, '左键 选择/确认 · 右键 取消 · E 结束回合', 14,
-          (SCREEN_W // 2, SCREEN_H - 28), (110, 110, 125), center=True)
+    _text(surf, '火 焰 纹 章', 64, (SCREEN_W // 2, 130), COL_GOLD, center=True)
+    _text(surf, '— 芬 河 战 记 —', 24, (SCREEN_W // 2, 195), COL_TEXT, center=True)
+    if summary:
+        _text(surf, summary, 14, (SCREEN_W // 2, 362), COL_DIM, center=True)
+    rects = []
+    y = 386
+    for label, enabled in items:
+        r = pygame.Rect(SCREEN_W // 2 - 110, y, 220, 42)
+        pygame.draw.rect(surf, COL_PANEL_LIGHT if enabled else COL_PANEL, r, border_radius=8)
+        pygame.draw.rect(surf, COL_BORDER if enabled else (70, 70, 84), r, 2, border_radius=8)
+        _text(surf, label, 20, r.center, COL_TEXT if enabled else (90, 90, 100), center=True)
+        rects.append(r)
+        y += 54
+    _text(surf, '左键 选择/确认 · 右键 取消 · E 结束回合 · I 单位详情', 13,
+          (SCREEN_W // 2, SCREEN_H - 22), (110, 110, 125), center=True)
+    return rects
 
 
 def draw_intro(surf, idx, ch):

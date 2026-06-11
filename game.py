@@ -10,6 +10,7 @@ import pygame
 
 import assets
 import combat
+import save
 import sfx
 import story
 import ui
@@ -46,6 +47,8 @@ class Game:
         self.dialogue_lines, self.dialogue_idx, self.after_dialogue = [], 0, None
         self.pages, self.page_idx, self.after_pages = [], 0, None
         self.boss_quote_shown = False
+        self.save_data = save.load_game()      # None = 无可用存档
+        self.title_rects = []
         self.state = 'TITLE'
 
     def _clear_battle_state(self):
@@ -78,6 +81,18 @@ class Game:
 
     def begin_intro(self):
         self.state = 'INTRO'
+
+    def new_game(self):
+        self.chapter_idx = 0
+        self.start_pages(story.PROLOGUE, self.begin_intro)
+
+    def continue_game(self):
+        """从存档恢复队伍与章节，进入章节过场。"""
+        sd = self.save_data
+        self.chapter_idx = sd['chapter_idx']
+        self.roster = [Unit.from_dict(d) for d in sd['roster']]
+        self.snapshot = copy.deepcopy(self.roster)
+        self.begin_intro()
 
     # ---------- 对话/旁白播放器 ----------
 
@@ -135,6 +150,7 @@ class Game:
             u.potions = POTION_USES
         if not retry:
             self.snapshot = copy.deepcopy(self.roster)
+            save.save_game(self.chapter_idx, [u.to_dict() for u in self.roster])
         enemies = [Unit(e['name'], e['cls'], 'enemy', e['pos'],
                         boss=e.get('boss', False), ai=e.get('ai', 'aggro'))
                    for e in ch['enemies']]
@@ -157,6 +173,10 @@ class Game:
 
     def chapter_clear(self):
         sfx.play('victory')
+        if self.chapter_idx + 1 < len(CHAPTERS):
+            save.save_game(self.chapter_idx + 1, [u.to_dict() for u in self.roster])
+        else:
+            save.delete_save()         # 通关删档
         self.state = 'CLEAR'
 
     def next_chapter(self):
@@ -168,6 +188,7 @@ class Game:
             self.begin_intro()
 
     def _enter_complete(self):
+        save.delete_save()             # 幂等兜底
         self.state = 'COMPLETE'
 
     # ---------- 回合调度 ----------
@@ -377,9 +398,24 @@ class Game:
 
         # --- 流程画面 ---
         if self.state == 'TITLE':
-            if click or key in (pygame.K_RETURN, pygame.K_SPACE):
+            if key in (pygame.K_RETURN, pygame.K_SPACE):
                 sfx.play('confirm')
-                self.start_pages(story.PROLOGUE, self.begin_intro)
+                self.new_game()
+            elif click:
+                for i, r in enumerate(self.title_rects):
+                    if not r.collidepoint(event.pos):
+                        continue
+                    if i == 0:
+                        sfx.play('confirm')
+                        self.new_game()
+                    elif i == 1 and self.save_data is not None:
+                        sfx.play('confirm')
+                        self.continue_game()
+                    elif i == 2:
+                        sfx.play('confirm')
+                        self.codex_sel = 0
+                        self.state = 'CODEX'
+                    return
             return
         if self.state == 'PROLOGUE':
             if click or key in (pygame.K_RETURN, pygame.K_SPACE):
@@ -629,11 +665,21 @@ class Game:
 
     def draw(self, surf):
         if self.state == 'TITLE':
-            ui.draw_title(surf, self.time)
+            items = [('新游戏', True),
+                     ('继续游戏', self.save_data is not None),
+                     ('人物图鉴', True)]
+            summary = None
+            if self.save_data is not None:
+                idx = self.save_data['chapter_idx']
+                roster = self.save_data['roster']
+                avg = round(sum(d['level'] for d in roster) / len(roster))
+                summary = (f'存档：第{"一二三"[idx]}章「{CHAPTERS[idx]["title"]}」'
+                           f' ｜ {len(roster)}人 平均Lv{avg}')
+            self.title_rects = ui.draw_title_menu(surf, items, summary)
             frame = int(self.time * 2.4)
             start_x = (720 - len(self.roster) * 84) // 2
             for i, u in enumerate(self.roster):
-                surf.blit(assets.unit_sprite(u.cls, (frame + i) % 2), (start_x + i * 84, 290))
+                surf.blit(assets.unit_sprite(u.cls, (frame + i) % 2), (start_x + i * 84, 282))
             return
         if self.state == 'INTRO':
             ui.draw_intro(surf, self.chapter_idx, self.chapter)
