@@ -1,16 +1,17 @@
 # 火焰纹章 · 芬河战记
 
 用 Python + pygame 实现的火焰纹章（GBA 风格）回合制战棋——**完整三章战役**：
-标题画面、剧情过场、跨章节成长、新同伴加入、Boss 战与通关结算一应俱全。
+标题菜单、章节自动存档、序章旁白与火纹式剧情对话、Boss 叫阵、人物图鉴、
+跨章节成长、新同伴加入与通关结算一应俱全。
 完整实现武器克制三角、地形效果、经验升级、伤药道具、守备 AI 与程序化 8-bit 音效。
 
-| 标题画面 | 战斗（移动/攻击范围） | 第三章·要塞攻坚 |
+| 标题菜单（含存档摘要） | 剧情对话 | 人物图鉴 |
 |---|---|---|
-| ![标题](docs/images/screenshot-title.png) | ![移动](docs/images/screenshot-move.png) | ![城堡](docs/images/screenshot-castle.png) |
+| ![标题](docs/images/screenshot-title.png) | ![对话](docs/images/screenshot-dialogue.png) | ![图鉴](docs/images/screenshot-codex.png) |
 
-| 章节过场 | 战斗预测 | 升级结算 |
+| 第三章·要塞攻坚 | 战斗预测 | 升级结算 |
 |---|---|---|
-| ![过场](docs/images/screenshot-intro.png) | ![预测](docs/images/screenshot-forecast.png) | ![升级](docs/images/screenshot-levelup.png) |
+| ![城堡](docs/images/screenshot-castle.png) | ![预测](docs/images/screenshot-forecast.png) | ![升级](docs/images/screenshot-levelup.png) |
 
 ## 安装与启动
 
@@ -33,14 +34,24 @@ python3 -m venv .venv
 - 休闲模式：非主角阵亡本章退场、下章回归；主角阵亡即败北
 - 败北后按 **R** 重试本章（回滚到本章开局，之前章节的成长保留）
 
+## 存档与剧情
+
+- **章节自动存档**：每章布阵与通关时自动写入 `save.json`，无需手动操作；
+  标题画面「继续游戏」一键回到进度（含队伍等级），通关后自动删档开启新周目
+- 存档损坏时「继续游戏」自动灰显，不会崩溃；战斗中途退出回到本章开局
+- **剧情**：新游戏从世界观旁白开篇；每章战斗前后在战场上播放角色对话；
+  首次攻击 Boss 触发叫阵对话；通关后有尾声旁白（ESC 可跳过任何剧情）
+- **人物图鉴**：标题菜单进入，收录我方五人与三章 Boss 的生平、基础属性与成长倾向
+
 ## 操作
 
 | 输入 | 作用 |
 |------|------|
 | 左键 | 选择单位 / 确认移动 / 选择目标 / 确认攻击 |
 | 左键点敌人（待机时） | 显示/隐藏该敌人的威胁范围 |
-| 右键 / ESC | 取消，逐级退回上一步 |
+| 右键 / ESC | 取消，逐级退回上一步；剧情中 ESC 整段跳过 |
 | E | 提前结束我方回合 |
+| I | 查看悬停/选中单位的详情页（属性 + 生平） |
 | R | 败北后重试本章；通关画面返回标题 |
 | 鼠标悬停 | 底部信息栏查看单位属性与地形效果 |
 
@@ -69,14 +80,15 @@ python3 -m venv .venv
 ## 开发
 
 ```bash
-.venv/bin/python -m pytest tests/ -v   # 38 个纯逻辑单元测试
+.venv/bin/python -m pytest tests/ -v   # 51 个纯逻辑单元测试
 .venv/bin/python assets.py             # 生成精灵映射预览图
 .venv/bin/python sfx.py                # 试听全部程序化音效
 ```
 
-代码结构：`settings/unit/combat/grid/ai` 为零 pygame 依赖的纯逻辑层（pytest 覆盖），
-`assets/ui/game/sfx/main` 为渲染交互层。三章地图与全部数值集中在 `settings.py`，
-改平衡、加关卡只需改数据。设计文档见 `docs/superpowers/specs/`。
+代码结构：`settings/unit/combat/grid/ai/save/story` 为零 pygame 依赖的纯逻辑层
+（pytest 覆盖），`assets/ui/game/sfx/main` 为渲染交互层。三章地图与全部数值集中在
+`settings.py`，剧情文案与角色生平集中在 `story.py`，改平衡、加关卡、改台词只需改数据。
+设计文档见 `docs/superpowers/specs/`。
 
 ## 素材与许可
 
