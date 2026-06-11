@@ -49,6 +49,8 @@ class Game:
         self.boss_quote_shown = False
         self.save_data = save.load_game()      # None = 无可用存档
         self.title_rects = []
+        self.codex_sel, self.codex_rects = 0, []
+        self.detail_unit, self.detail_return = None, 'IDLE'
         self.state = 'TITLE'
 
     def _clear_battle_state(self):
@@ -417,6 +419,29 @@ class Game:
                         self.state = 'CODEX'
                     return
             return
+        if self.state == 'CODEX':
+            rclick = event.type == pygame.MOUSEBUTTONDOWN and event.button == 3
+            if key == pygame.K_ESCAPE or rclick:
+                sfx.play('cancel')
+                self.state = 'TITLE'
+            elif key == pygame.K_LEFT:
+                self.codex_sel = (self.codex_sel - 1) % len(story.CODEX_ORDER)
+                sfx.play('select')
+            elif key == pygame.K_RIGHT:
+                self.codex_sel = (self.codex_sel + 1) % len(story.CODEX_ORDER)
+                sfx.play('select')
+            elif click:
+                for i, r in enumerate(self.codex_rects):
+                    if r.collidepoint(event.pos):
+                        self.codex_sel = i
+                        sfx.play('select')
+            return
+        if self.state == 'DETAIL':
+            rclick = event.type == pygame.MOUSEBUTTONDOWN and event.button == 3
+            if click or rclick or key in (pygame.K_ESCAPE, pygame.K_i):
+                sfx.play('cancel')
+                self.state = self.detail_return
+            return
         if self.state == 'PROLOGUE':
             if click or key in (pygame.K_RETURN, pygame.K_SPACE):
                 self.advance_page()
@@ -471,6 +496,13 @@ class Game:
         if event.type == pygame.KEYDOWN:
             if key == pygame.K_e and self.state == 'IDLE':
                 self.start_enemy_phase()
+            elif key == pygame.K_i and self.state in ('IDLE', 'MOVE'):
+                u = ((self.unit_at(self.hover) if self.hover else None)
+                     or self.selected or self.threat_unit)
+                if u is not None:
+                    sfx.play('select')
+                    self.detail_unit, self.detail_return = u, self.state
+                    self.state = 'DETAIL'
             elif key == pygame.K_ESCAPE:
                 self.cancel()
             elif key == pygame.K_RETURN and self.state == 'FORECAST':
@@ -691,6 +723,11 @@ class Game:
             ui.draw_prologue(surf, self.pages[self.page_idx],
                              self.page_idx, len(self.pages))
             return
+        if self.state == 'CODEX':
+            entries = [(n, story.BIOS[n]) for n in story.CODEX_ORDER]
+            self.codex_rects = ui.draw_codex(surf, entries, self.codex_sel,
+                                             assets.unit_sprite)
+            return
 
         water_frame = int(self.time * 1.6) % 2
         for y in range(GRID_H):
@@ -766,6 +803,9 @@ class Game:
         elif self.state == 'LEVELUP' and self.levelups:
             u, gains = self.levelups[0]
             ui.draw_levelup(surf, u, gains, self.levelup_t)
+        elif self.state == 'DETAIL':
+            ui.draw_unit_detail(surf, self.detail_unit,
+                                story.BIOS.get(self.detail_unit.name))
 
         if self.banner is not None:
             ui.draw_banner(surf, self.banner['text'], self.banner['t'], self.banner['color'])

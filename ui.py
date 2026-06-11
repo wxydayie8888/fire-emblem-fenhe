@@ -6,8 +6,8 @@ import math
 
 import pygame
 
-from settings import (CELL, GRID_H, GRID_W, INFO_H, SCREEN_H, SCREEN_W,
-                      STAT_NAMES, TERRAIN, WEAPONS)
+from settings import (CELL, CLASSES, GRID_H, GRID_W, INFO_H, SCREEN_H,
+                      SCREEN_W, STAT_NAMES, TERRAIN, WEAPONS)
 
 # 颜色
 COL_PANEL = (28, 30, 44)
@@ -321,6 +321,109 @@ def draw_dialogue(surf, speaker, side, text, sprite):
         _text(surf, line, 17, (text_x, y))
         y += 26
     _text(surf, '▼ 点击继续', 13, (box.right - 96, box.bottom - 24), COL_DIM)
+
+
+# --- 人物图鉴 / 单位详情 ---
+
+def draw_codex(surf, entries, sel, sprite_fn):
+    """人物图鉴。entries: [(name, bio_dict)]。返回左侧名单的 rects。"""
+    surf.fill((16, 14, 24))
+    _text(surf, '人 物 图 鉴', 28, (SCREEN_W // 2, 28), COL_GOLD, center=True)
+    _text(surf, '点击 / ←→ 切换 · ESC 或右键返回标题', 13,
+          (SCREEN_W // 2, 58), COL_DIM, center=True)
+    rects = []
+    y = 84
+    for i, (name, b) in enumerate(entries):
+        r = pygame.Rect(20, y, 150, 48)
+        if i == sel:
+            pygame.draw.rect(surf, COL_PANEL_LIGHT, r, border_radius=8)
+            pygame.draw.rect(surf, COL_GOLD, r, 2, border_radius=8)
+        else:
+            pygame.draw.rect(surf, COL_PANEL, r, border_radius=8)
+            pygame.draw.rect(surf, COL_BORDER, r, 1, border_radius=8)
+        is_enemy = not CLASSES[b['cls']]['growth']
+        _text(surf, name, 18, (r.x + 14, r.y + 13),
+              COL_ENEMY if is_enemy else COL_TEXT)
+        rects.append(r)
+        y += 56
+    # 右侧详情
+    name, b = entries[sel]
+    c = CLASSES[b['cls']]
+    surf.blit(pygame.transform.scale(sprite_fn(b['cls']), (144, 144)), (210, 88))
+    _text(surf, name, 32, (382, 100))
+    _text(surf, b['title'], 17, (382, 148), COL_GOLD)
+    _text(surf, f'{c["name"]} ｜ 武器：{WEAPONS[c["weapon"]]["name"]}', 15,
+          (382, 180), COL_DIM)
+    y = 252
+    for line in b['bio']:
+        _text(surf, line, 16, (210, y))
+        y += 28
+    y += 10
+    _text(surf, '基础属性', 15, (210, y), COL_GOLD)
+    y += 26
+    _text(surf, (f'HP {c["hp"]}   力量 {c["pow"]}   技巧 {c["skl"]}   '
+                 f'速度 {c["spd"]}   防御 {c["dfn"]}   移动 {c["mov"]}'), 16, (210, y))
+    y += 36
+    _text(surf, '成长倾向', 15, (210, y), COL_GOLD)
+    y += 26
+    if c['growth']:
+        for st in ('hp', 'pow', 'skl', 'spd', 'dfn'):
+            g = c['growth'][st]
+            _text(surf, STAT_NAMES[st], 14, (210, y))
+            pygame.draw.rect(surf, (50, 52, 66), (264, y + 3, 200, 12), border_radius=6)
+            pygame.draw.rect(surf, (90, 200, 110), (264, y + 3, int(200 * g / 100), 12),
+                             border_radius=6)
+            _text(surf, f'{g}%', 13, (474, y + 1), COL_DIM)
+            y += 24
+    else:
+        _text(surf, '——（敌方角色，无成长数据）', 15, (210, y), COL_DIM)
+    return rects
+
+
+def draw_unit_detail(surf, unit, bio):
+    """战斗中按 I 的单位详情浮层。bio 可为 None（无生平的杂兵）。"""
+    veil = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+    veil.fill((10, 10, 16, 175))
+    surf.blit(veil, (0, 0))
+    p = pygame.Rect(SCREEN_W // 2 - 280, 56, 560, 430)
+    pygame.draw.rect(surf, COL_PANEL, p, border_radius=12)
+    pygame.draw.rect(surf, COL_BORDER, p, 2, border_radius=12)
+    import assets as _assets
+    surf.blit(pygame.transform.scale(_assets.unit_sprite(unit.cls), (96, 96)),
+              (p.x + 34, p.y + 26))
+    name_col = COL_PLAYER if unit.team == 'player' else COL_ENEMY
+    _text(surf, unit.name, 26, (p.x + 158, p.y + 28), name_col)
+    if bio:
+        _text(surf, bio['title'], 16, (p.x + 158, p.y + 66), COL_GOLD)
+    _text(surf, f'{unit.cls_name}  Lv{unit.level}  EXP {unit.exp}/100', 15,
+          (p.x + 158, p.y + 94), COL_DIM)
+    w = WEAPONS[unit.weapon]
+    lo, hi = w['range']
+    rng = f'{lo}' if lo == hi else f'{lo}-{hi}'
+    _text(surf, f'武器：{w["name"]}（威力{w["might"]} 命中{w["hit"]} 射程{rng}）', 15,
+          (p.x + 158, p.y + 120), COL_DIM)
+    y = p.y + 168
+    _text(surf, '当前能力', 15, (p.x + 34, y), COL_GOLD)
+    y += 28
+    stats = [('HP', f'{unit.hp}/{unit.max_hp}'), ('力量', unit.pow), ('技巧', unit.skl),
+             ('速度', unit.spd), ('防御', unit.dfn), ('移动', unit.mov)]
+    for i, (label, val) in enumerate(stats):
+        x = p.x + 34 + (i % 3) * 175
+        yy = y + (i // 3) * 30
+        _text(surf, f'{label}', 15, (x, yy), COL_DIM)
+        _text(surf, f'{val}', 16, (x + 52, yy))
+    y += 72
+    if unit.team == 'player':
+        _text(surf, f'伤药 ×{unit.potions}', 15, (p.x + 34, y), (120, 220, 120))
+    y += 34
+    if bio:
+        _text(surf, '生平', 15, (p.x + 34, y), COL_GOLD)
+        y += 26
+        for line in bio['bio']:
+            _text(surf, line, 15, (p.x + 34, y))
+            y += 26
+    _text(surf, '按 I / ESC / 点击 关闭', 13, (p.centerx, p.bottom - 26),
+          COL_DIM, center=True)
 
 
 # --- 回合横幅 / 结局 ---
