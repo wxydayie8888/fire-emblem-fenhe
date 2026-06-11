@@ -25,10 +25,10 @@ def test_triangle():
 
 
 def test_damage_with_triangle():
-    # 剑lord打斧fighter: 6力+5威力+1克制-4防 = 8
-    assert combat.calc_damage(lord(), fighter()) == 8
-    # 反向: 8力+8威力-1被克-5防 = 10
-    assert combat.calc_damage(fighter(), lord()) == 10
+    # 剑lord打斧fighter: 7力+5威力+1克制-4防 = 9
+    assert combat.calc_damage(lord(), fighter()) == 9
+    # 反向: 7力+8威力-1被克-7防 = 7
+    assert combat.calc_damage(fighter(), lord()) == 7
 
 
 def test_damage_floor_zero():
@@ -61,10 +61,10 @@ def test_forecast_no_counter_for_bow():
 def test_resolve_kill_and_exp():
     a, d = lord(), fighter(hp=5)
     events, exp = combat.resolve(a, d, 1, 0, 0, rng=lambda: 0.0)
-    # rng=0: 必中+必杀 8*3=24 ≥ 5HP，一击毙命，无反击
+    # rng=0: 必中+必杀 9*3=27 ≥ 5HP，一击毙命，无反击
     assert not d.alive and len(events) == 1
-    assert events[0]['crit'] and events[0]['dmg'] == 24
-    assert exp[a] == 10 + 30   # 命中+击杀
+    assert events[0]['crit'] and events[0]['dmg'] == 27
+    assert exp[a] == 10 + 40   # 命中+击杀
 
 
 def test_resolve_counter_and_double():

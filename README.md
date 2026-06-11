@@ -63,8 +63,8 @@ python3 -m venv .venv
 - **必杀**：必杀率 = 武器必杀 + 技巧/2，造成 3 倍伤害
 - **地形**：森林 +20 回避（移动消耗 2）；山地 +30 回避（消耗 3，骑兵不可入）；
   要塞 +20 回避且每回合恢复 20% HP；城门 +10 回避；水域/城墙不可通行
-- **伤药**：每人每章 3 瓶，行动菜单「用药」恢复 10 HP（消耗该回合行动）
-- **经验**：命中 +10、击杀 +30、击杀 Boss +60；满 100 升级，属性按职业成长率随机提升
+- **伤药**：每人每章 3 瓶，行动菜单「用药」恢复 12 HP（消耗该回合行动）
+- **经验**：命中 +10、击杀 +40、击杀 Boss +80；满 100 升级，属性按职业成长率随机提升
 - **守备 AI**：部分敌人原地驻守，进入其攻击圈或被攻击后会被激活
 
 ## 我方阵容
@@ -80,10 +80,14 @@ python3 -m venv .venv
 ## 开发
 
 ```bash
-.venv/bin/python -m pytest tests/ -v   # 51 个纯逻辑单元测试
-.venv/bin/python assets.py             # 生成精灵映射预览图
-.venv/bin/python sfx.py                # 试听全部程序化音效
+.venv/bin/python -m pytest tests/ -v     # 51 个纯逻辑单元测试
+.venv/bin/python assets.py               # 生成精灵映射预览图
+.venv/bin/python sfx.py                  # 试听全部程序化音效
+.venv/bin/python tools/balance_sim.py 40 # 平衡性模拟（贪心bot打全战役统计胜率）
 ```
+
+平衡基准（贪心 bot、不重试，40 局）：第一章 82% / 第二章 94% / 第三章 68%，
+全程通关 52%。真人玩家会用地形卡口与威胁范围，实际体验更宽松；改数值后请重跑模拟。
 
 代码结构：`settings/unit/combat/grid/ai/save/story` 为零 pygame 依赖的纯逻辑层
 （pytest 覆盖），`assets/ui/game/sfx/main` 为渲染交互层。三章地图与全部数值集中在

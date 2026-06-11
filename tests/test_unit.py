@@ -7,7 +7,7 @@ def make_lord():
 
 def test_init_from_class():
     u = make_lord()
-    assert (u.hp, u.max_hp, u.pow, u.mov) == (20, 20, 6, 5)
+    assert (u.hp, u.max_hp, u.pow, u.mov) == (24, 24, 7, 5)
     assert u.weapon == 'sword' and u.alive and not u.mounted
 
 
@@ -22,7 +22,7 @@ def test_levelup_all_stats_with_max_growth():
     gains = u.gain_exp(100, rng=lambda: 0.0)   # rng=0 → 全部成长
     assert u.level == 2 and u.exp == 0
     assert gains == [{'hp': 1, 'pow': 1, 'skl': 1, 'spd': 1, 'dfn': 1}]
-    assert u.max_hp == 21 and u.hp == 21 and u.pow == 7
+    assert u.max_hp == 25 and u.hp == 25 and u.pow == 8
 
 
 def test_levelup_no_stats_with_min_growth():
@@ -55,14 +55,14 @@ def test_potion_heals_and_consumes():
     u = make_lord()
     u.hp = 5
     assert u.potions == 3
-    assert u.use_potion() == 10        # 回复量
-    assert u.hp == 15 and u.potions == 2
+    assert u.use_potion() == 12        # 回复量
+    assert u.hp == 17 and u.potions == 2
 
 
 def test_potion_caps_at_max_hp():
     u = make_lord()
     u.hp = 15
-    assert u.use_potion() == 5         # 只回到满血
+    assert u.use_potion() == 9         # 只回到满血
     assert u.hp == u.max_hp
 
 
@@ -79,7 +79,7 @@ def test_to_dict_only_save_fields():
     u.gain_exp(140, rng=lambda: 0.0)   # Lv2 全成长, exp 40
     d = u.to_dict()
     assert d == {'name': '罗伊', 'cls': 'lord', 'level': 2, 'exp': 40,
-                 'max_hp': 21, 'pow': 7, 'skl': 9, 'spd': 10, 'dfn': 6}
+                 'max_hp': 25, 'pow': 8, 'skl': 9, 'spd': 10, 'dfn': 8}
 
 
 def test_from_dict_roundtrip():
