@@ -63,13 +63,31 @@ FALLBACK_COLORS = {
 }
 
 
+# 原创像素立绘（tools/gen_portraits.py 生成），按角色名索引
+PORTRAIT_FILES = {'罗伊': 'roy', '兰斯': 'lance', '丽贝卡': 'rebecca',
+                  '莉莉娜': 'lilina', '菲尔': 'fir', '盖尔': 'gale',
+                  '莫尔甘': 'morgan', '巴尔克': 'balk'}
+_portraits = {}
+
+
 def load():
-    """定位素材目录。必须在 pygame.display 初始化后调用。"""
+    """定位素材目录并载入立绘。必须在 pygame.display 初始化后调用。"""
     global _asset_dir
     hits = list((ROOT / 'assets').rglob('Objects/Floor.png'))
     if not hits:
         raise SystemExit('素材未就绪，请先运行: python3 tools/fetch_assets.py')
     _asset_dir = hits[0].parent.parent
+    for name, fname in PORTRAIT_FILES.items():
+        path = ROOT / 'assets' / 'portraits' / f'{fname}.png'
+        try:
+            _portraits[name] = pygame.image.load(str(path)).convert_alpha()
+        except (pygame.error, FileNotFoundError):
+            pass                       # 缺图时调用方回退到地图精灵
+
+
+def portrait(name):
+    """角色立绘（48x48）。无此角色立绘返回 None。"""
+    return _portraits.get(name)
 
 
 def _sheet(rel):

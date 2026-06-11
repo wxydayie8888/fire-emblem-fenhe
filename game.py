@@ -725,8 +725,8 @@ class Game:
             return
         if self.state == 'CODEX':
             entries = [(n, story.BIOS[n]) for n in story.CODEX_ORDER]
-            self.codex_rects = ui.draw_codex(surf, entries, self.codex_sel,
-                                             assets.unit_sprite)
+            pic_fn = lambda name, cls: assets.portrait(name) or assets.unit_sprite(cls)
+            self.codex_rects = ui.draw_codex(surf, entries, self.codex_sel, pic_fn)
             return
 
         water_frame = int(self.time * 1.6) % 2
@@ -781,9 +781,11 @@ class Game:
             pygame.draw.rect(surf, (16, 14, 24),
                              (0, GRID_H * CELL, 720, 100))
             speaker, side, text = self.dialogue_lines[self.dialogue_idx]
-            sprite = (assets.unit_sprite(story.NAME_TO_CLS[speaker])
-                      if side is not None else None)
-            ui.draw_dialogue(surf, speaker, side, text, sprite)
+            pic = None
+            if side is not None:
+                pic = (assets.portrait(speaker)
+                       or assets.unit_sprite(story.NAME_TO_CLS[speaker]))
+            ui.draw_dialogue(surf, speaker, side, text, pic)
             return
 
         hover_unit = self.unit_at(self.hover) if self.hover else None

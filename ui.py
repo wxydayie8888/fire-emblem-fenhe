@@ -325,8 +325,8 @@ def draw_dialogue(surf, speaker, side, text, sprite):
 
 # --- 人物图鉴 / 单位详情 ---
 
-def draw_codex(surf, entries, sel, sprite_fn):
-    """人物图鉴。entries: [(name, bio_dict)]。返回左侧名单的 rects。"""
+def draw_codex(surf, entries, sel, pic_fn):
+    """人物图鉴。entries: [(name, bio_dict)]，pic_fn(name, cls)→立绘。返回左侧名单 rects。"""
     surf.fill((16, 14, 24))
     _text(surf, '人 物 图 鉴', 28, (SCREEN_W // 2, 28), COL_GOLD, center=True)
     _text(surf, '点击 / ←→ 切换 · ESC 或右键返回标题', 13,
@@ -349,7 +349,7 @@ def draw_codex(surf, entries, sel, sprite_fn):
     # 右侧详情
     name, b = entries[sel]
     c = CLASSES[b['cls']]
-    surf.blit(pygame.transform.scale(sprite_fn(b['cls']), (144, 144)), (210, 88))
+    surf.blit(pygame.transform.scale(pic_fn(name, b['cls']), (144, 144)), (210, 88))
     _text(surf, name, 32, (382, 100))
     _text(surf, b['title'], 17, (382, 148), COL_GOLD)
     _text(surf, f'{c["name"]} ｜ 武器：{WEAPONS[c["weapon"]]["name"]}', 15,
@@ -389,8 +389,8 @@ def draw_unit_detail(surf, unit, bio):
     pygame.draw.rect(surf, COL_PANEL, p, border_radius=12)
     pygame.draw.rect(surf, COL_BORDER, p, 2, border_radius=12)
     import assets as _assets
-    surf.blit(pygame.transform.scale(_assets.unit_sprite(unit.cls), (96, 96)),
-              (p.x + 34, p.y + 26))
+    pic = _assets.portrait(unit.name) or _assets.unit_sprite(unit.cls)
+    surf.blit(pygame.transform.scale(pic, (96, 96)), (p.x + 34, p.y + 26))
     name_col = COL_PLAYER if unit.team == 'player' else COL_ENEMY
     _text(surf, unit.name, 26, (p.x + 158, p.y + 28), name_col)
     if bio:
