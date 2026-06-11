@@ -11,6 +11,7 @@ import pygame
 import assets
 import combat
 import sfx
+import story
 import ui
 from ai import plan_action
 from grid import Grid, manhattan, move_range
@@ -41,6 +42,10 @@ class Game:
         self.turn = 1
         self.time = 0.0
         self._clear_battle_state()
+        # 对话/旁白播放器（跨 battle-state 存活，不进 _clear_battle_state）
+        self.dialogue_lines, self.dialogue_idx, self.after_dialogue = [], 0, None
+        self.pages, self.page_idx, self.after_pages = [], 0, None
+        self.boss_quote_shown = False
         self.state = 'TITLE'
 
     def _clear_battle_state(self):
@@ -73,6 +78,44 @@ class Game:
 
     def begin_intro(self):
         self.state = 'INTRO'
+
+    # ---------- 对话/旁白播放器 ----------
+
+    def start_dialogue(self, lines, after):
+        """播放对话（战场背景），播完调用 after()。"""
+        if not lines:
+            after()
+            return
+        self.dialogue_lines = list(lines)
+        self.dialogue_idx = 0
+        self.after_dialogue = after
+        self.state = 'DIALOGUE'
+
+    def advance_dialogue(self, skip=False):
+        sfx.play('select')
+        self.dialogue_idx += 1
+        if skip or self.dialogue_idx >= len(self.dialogue_lines):
+            after = self.after_dialogue
+            self.dialogue_lines, self.after_dialogue = [], None
+            after()
+
+    def start_pages(self, pages, after):
+        """播放黑底旁白页（序章/尾声），播完调用 after()。"""
+        if not pages:
+            after()
+            return
+        self.pages = list(pages)
+        self.page_idx = 0
+        self.after_pages = after
+        self.state = 'PROLOGUE'
+
+    def advance_page(self, skip=False):
+        sfx.play('select')
+        self.page_idx += 1
+        if skip or self.page_idx >= len(self.pages):
+            after = self.after_pages
+            self.pages, self.after_pages = [], None
+            after()
 
     def setup_chapter(self, retry=False):
         """布阵：建队伍与敌人、放置单位、拍快照。不开战（对话可先在战场上播放）。"""
@@ -119,9 +162,13 @@ class Game:
     def next_chapter(self):
         self.chapter_idx += 1
         if self.chapter_idx >= len(CHAPTERS):
-            self.state = 'COMPLETE'
+            self.chapter_idx = len(CHAPTERS) - 1     # COMPLETE 画面仍可安全访问 chapter
+            self.start_pages(story.EPILOGUE, self._enter_complete)
         else:
             self.begin_intro()
+
+    def _enter_complete(self):
+        self.state = 'COMPLETE'
 
     # ---------- 回合调度 ----------
 
@@ -274,7 +321,8 @@ class Game:
 
     def continue_after_combat(self):
         if self._chapter_won():
-            self.chapter_clear()
+            post = story.CHAPTER_DIALOGUE[self.chapter_idx]['post']
+            self.start_dialogue(post, self.chapter_clear)
             return
         if not self.lord.alive or not self.alive('player'):
             sfx.play('defeat')
@@ -331,12 +379,26 @@ class Game:
         if self.state == 'TITLE':
             if click or key in (pygame.K_RETURN, pygame.K_SPACE):
                 sfx.play('confirm')
-                self.begin_intro()
+                self.start_pages(story.PROLOGUE, self.begin_intro)
+            return
+        if self.state == 'PROLOGUE':
+            if click or key in (pygame.K_RETURN, pygame.K_SPACE):
+                self.advance_page()
+            elif key == pygame.K_ESCAPE:
+                self.advance_page(skip=True)
+            return
+        if self.state == 'DIALOGUE':
+            if click or key in (pygame.K_RETURN, pygame.K_SPACE):
+                self.advance_dialogue()
+            elif key == pygame.K_ESCAPE:
+                self.advance_dialogue(skip=True)
             return
         if self.state == 'INTRO':
             if click or key in (pygame.K_RETURN, pygame.K_SPACE):
                 sfx.play('confirm')
-                self.start_chapter()
+                self.setup_chapter()
+                pre = story.CHAPTER_DIALOGUE[self.chapter_idx]['pre']
+                self.start_dialogue(pre, self.enter_battle)
             return
         if self.state == 'CLEAR':
             if click or key in (pygame.K_RETURN, pygame.K_SPACE):
@@ -472,13 +534,20 @@ class Game:
 
     def confirm_attack(self):
         sfx.play('confirm')
-        self.start_combat(self.selected, self.target, 'player')
+        if self.target.boss and not self.boss_quote_shown:
+            self.boss_quote_shown = True
+            att, dfd = self.selected, self.target
+            self.start_dialogue(story.BOSS_QUOTES[self.chapter_idx],
+                                lambda: self.start_combat(att, dfd, 'player'))
+        else:
+            self.start_combat(self.selected, self.target, 'player')
 
     # ---------- 更新 ----------
 
     def update(self, dt):
         self.time += dt
-        if self.state in ('TITLE', 'INTRO', 'COMPLETE'):
+        if self.state in ('TITLE', 'INTRO', 'COMPLETE', 'PROLOGUE', 'DIALOGUE',
+                          'CODEX', 'DETAIL'):
             return
         for f in self.floats:
             f['t'] += dt / FLOAT_DUR
@@ -572,6 +641,10 @@ class Game:
         if self.state == 'COMPLETE':
             ui.draw_complete(surf, self.roster)
             return
+        if self.state == 'PROLOGUE':
+            ui.draw_prologue(surf, self.pages[self.page_idx],
+                             self.page_idx, len(self.pages))
+            return
 
         water_frame = int(self.time * 1.6) % 2
         for y in range(GRID_H):
@@ -619,6 +692,16 @@ class Game:
 
         for f in self.floats:
             ui.draw_float_text(surf, f['text'], f['x'] * CELL, f['y'] * CELL, f['t'], f['color'])
+
+        if self.state == 'DIALOGUE':
+            # 对话框盖在战场上，信息栏/菜单不再绘制
+            pygame.draw.rect(surf, (16, 14, 24),
+                             (0, GRID_H * CELL, 720, 100))
+            speaker, side, text = self.dialogue_lines[self.dialogue_idx]
+            sprite = (assets.unit_sprite(story.NAME_TO_CLS[speaker])
+                      if side is not None else None)
+            ui.draw_dialogue(surf, speaker, side, text, sprite)
+            return
 
         hover_unit = self.unit_at(self.hover) if self.hover else None
         info_unit = hover_unit or (self.selected if self.state != 'IDLE' else None)

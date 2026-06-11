@@ -259,6 +259,59 @@ def draw_objective(surf, turn, text):
     surf.blit(chip, (4 + pad, 4 + pad // 2))
 
 
+# --- 旁白页 / 对话框 ---
+
+def _wrap(text, size, max_w):
+    """按像素宽度对中文文本贪心换行。"""
+    f = font(size)
+    lines, cur = [], ''
+    for ch in text:
+        if cur and f.size(cur + ch)[0] > max_w:
+            lines.append(cur)
+            cur = ch
+        else:
+            cur += ch
+    lines.append(cur)
+    return lines
+
+
+def draw_prologue(surf, lines, page_idx, total):
+    """黑底旁白页（序章/尾声共用）。"""
+    surf.fill((12, 11, 18))
+    y = 150
+    for line in lines:
+        if line:
+            _text(surf, line, 20, (SCREEN_W // 2, y), COL_TEXT, center=True)
+        y += 42
+    _text(surf, f'{page_idx + 1} / {total} ｜ 点击继续 · ESC 跳过', 14,
+          (SCREEN_W // 2, SCREEN_H - 40), COL_DIM, center=True)
+
+
+def draw_dialogue(surf, speaker, side, text, sprite):
+    """火纹式底部对话框。side: left我方/right敌方/None旁白居中。"""
+    box_h = 150
+    box = pygame.Rect(8, SCREEN_H - box_h - 8, SCREEN_W - 16, box_h)
+    pygame.draw.rect(surf, COL_PANEL, box, border_radius=10)
+    pygame.draw.rect(surf, COL_BORDER, box, 2, border_radius=10)
+    text_x, text_w = box.x + 24, box.w - 48
+    if sprite is not None:
+        big = pygame.transform.scale(sprite, (96, 96))
+        if side == 'right':
+            surf.blit(big, (box.right - 114, box.y + box_h // 2 - 48))
+            text_x, text_w = box.x + 24, box.w - 156
+        else:
+            surf.blit(big, (box.x + 18, box.y + box_h // 2 - 48))
+            text_x, text_w = box.x + 130, box.w - 156
+    name_color = (COL_PLAYER if side == 'left'
+                  else COL_ENEMY if side == 'right' else COL_GOLD)
+    _text(surf, speaker, 18, (text_x, box.y + 14), name_color)
+    y = box.y + 46
+    for line in _wrap(text, 17, text_w):
+        _text(surf, line, 17, (text_x, y))
+        y += 26
+    _text(surf, '▼ 点击继续', 13, (box.right - 96, box.bottom - 24), COL_DIM)
+
+
 # --- 回合横幅 / 结局 ---
 
 def draw_banner(surf, text, t, color):
