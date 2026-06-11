@@ -74,13 +74,16 @@ class Game:
     def begin_intro(self):
         self.state = 'INTRO'
 
-    def start_chapter(self, retry=False):
+    def setup_chapter(self, retry=False):
+        """布阵：建队伍与敌人、放置单位、拍快照。不开战（对话可先在战场上播放）。"""
         ch = self.chapter
         if retry and self.snapshot is not None:
             self.roster = copy.deepcopy(self.snapshot)
         elif not retry:
             for j in ch['join']:
-                self.roster.append(Unit(j['name'], j['cls'], 'player', j['pos']))
+                # 幂等：读档进来的 roster 可能已含本章同伴
+                if all(u.name != j['name'] for u in self.roster):
+                    self.roster.append(Unit(j['name'], j['cls'], 'player', j['pos']))
         positions = list(ch['players']) + [j['pos'] for j in ch['join']]
         for u, pos in zip(self.roster, positions):
             u.x, u.y = pos
@@ -96,9 +99,18 @@ class Game:
         self.grid = Grid(ch['map'])
         self.turn = 1
         self._clear_battle_state()
+        self.boss_quote_shown = False
+        self.state = 'IDLE'
+
+    def enter_battle(self):
+        """开战：回合横幅 + 进入待机。"""
         self.show_banner(f'第 {self.turn} 回合  玩家行动', ui.COL_PLAYER)
         sfx.play('turn')
         self.state = 'IDLE'
+
+    def start_chapter(self, retry=False):
+        self.setup_chapter(retry)
+        self.enter_battle()
 
     def chapter_clear(self):
         sfx.play('victory')
