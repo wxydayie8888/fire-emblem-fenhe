@@ -90,6 +90,24 @@ class Unit:
         u.hp = u.max_hp
         return u
 
+    # 战斗中挂起存档：完整还原战局所需的全部可变状态
+    BATTLE_FIELDS = SAVE_FIELDS + ('team', 'x', 'y', 'hp', 'acted', 'potions',
+                                   'boss', 'ai')
+
+    def to_battle_dict(self):
+        return {f: getattr(self, f) for f in self.BATTLE_FIELDS}
+
+    @classmethod
+    def from_battle_dict(cls_, d):
+        u = cls_(d['name'], d['cls'], d['team'], (d['x'], d['y']),
+                 boss=d['boss'], ai=d['ai'])
+        for f in SAVE_FIELDS[2:]:
+            setattr(u, f, d[f])
+        u.hp = d['hp']
+        u.acted = d['acted']
+        u.potions = d['potions']
+        return u
+
     def use_potion(self):
         """喝伤药。返回实际回复量（没药或满血返回 0，不消耗）。"""
         if self.potions <= 0:

@@ -66,3 +66,44 @@ def test_delete_idempotent(tmp_path):
     save.delete_save(path=p)
     assert not p.exists()
     save.delete_save(path=p)        # 再删不报错
+
+
+def battle_payload():
+    lord = Unit('罗伊', 'lord', 'player', (2, 4))
+    enemy = Unit('斧兵', 'fighter', 'enemy', (10, 4))
+    return {
+        'chapter_idx': 5, 'turn': 4, 'boss_quote_shown': True,
+        'camp_turns': 21, 'reinforce_used': [3],
+        'pending_reinforce': [],
+        'roster_meta': [lord.to_battle_dict()],
+        'snapshot': [lord.to_dict()],
+        'enemies': [enemy.to_battle_dict()],
+    }
+
+
+def test_battle_save_roundtrip(tmp_path):
+    p = tmp_path / 'save.json'
+    save.save_battle(battle_payload(), path=p)
+    data = save.load_game(path=p)
+    assert data and data['kind'] == 'battle'
+    assert data['turn'] == 4 and data['chapter_idx'] == 5
+    assert data['enemies'][0]['cls'] == 'fighter'
+
+
+def test_battle_save_validation(tmp_path):
+    p = tmp_path / 'save.json'
+    bad = battle_payload()
+    bad['enemies'][0]['cls'] = 'slime'
+    save.save_battle(bad, path=p)
+    assert save.load_game(path=p) is None        # 非法职业拒绝
+    bad2 = battle_payload()
+    bad2['roster_meta'][0]['cls'] = 'mage'        # 首位非领主
+    save.save_battle(bad2, path=p)
+    assert save.load_game(path=p) is None
+
+
+def test_chapter_save_still_works(tmp_path):
+    p = tmp_path / 'save.json'
+    save.save_game(1, roster_dicts(5), path=p)
+    data = save.load_game(path=p)
+    assert data['kind'] == 'chapter'

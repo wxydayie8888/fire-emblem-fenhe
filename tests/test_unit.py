@@ -115,3 +115,23 @@ def test_apply_boost():
     assert e.pow == 9 and e.dfn == 5
     e.apply_boost({})                      # 空加成无副作用
     assert e.max_hp == 26
+
+
+def test_battle_dict_roundtrip():
+    e = Unit('精锐', 'fighter', 'enemy', (5, 3), boss=True, ai='guard')
+    e.apply_boost({'hp': 6, 'pow': 2})
+    e.hp = 9
+    d = e.to_battle_dict()
+    r = Unit.from_battle_dict(d)
+    assert (r.x, r.y) == (5, 3) and r.hp == 9 and r.max_hp == 26
+    assert r.pow == 9 and r.boss and r.ai == 'guard' and r.team == 'enemy'
+    assert r.to_battle_dict() == d
+
+
+def test_battle_dict_keeps_player_state():
+    u = make_lord()
+    u.gain_exp(140, rng=lambda: 0.0)
+    u.acted = True
+    u.potions = 1
+    r = Unit.from_battle_dict(u.to_battle_dict())
+    assert r.level == 2 and r.acted and r.potions == 1 and r.team == 'player'
