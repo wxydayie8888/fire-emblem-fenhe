@@ -222,9 +222,25 @@ def draw_levelup(surf, unit, gains, t):
 
 # --- 战役流程画面 ---
 
-def draw_title_menu(surf, items, summary):
-    """标题画面菜单。items: [(label, enabled)]。返回各项 rect。"""
-    surf.fill((16, 14, 24))
+_title_bg_cache = [None, None]    # [src_id, scaled]
+
+
+def draw_title_menu(surf, items, summary, bg=None):
+    """标题画面菜单。items: [(label, enabled)]。bg: 键视觉背景图。返回各项 rect。"""
+    if bg is not None:
+        if _title_bg_cache[0] is not id(bg):
+            scale = max(SCREEN_W / bg.get_width(), SCREEN_H / bg.get_height())
+            scaled = pygame.transform.smoothscale(
+                bg, (int(bg.get_width() * scale), int(bg.get_height() * scale)))
+            _title_bg_cache[0], _title_bg_cache[1] = id(bg), scaled
+        scaled = _title_bg_cache[1]
+        surf.blit(scaled, ((SCREEN_W - scaled.get_width()) // 2,
+                           (SCREEN_H - scaled.get_height()) // 2))
+        veil = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+        veil.fill((10, 10, 18, 150))
+        surf.blit(veil, (0, 0))
+    else:
+        surf.fill((16, 14, 24))
     _text(surf, '火 焰 纹 章', 64, (SCREEN_W // 2, 130), COL_GOLD, center=True)
     _text(surf, '— 芬 河 战 记 —', 24, (SCREEN_W // 2, 195), COL_TEXT, center=True)
     if summary:
@@ -248,8 +264,13 @@ def draw_records_line(surf, text):
     _text(surf, text, 14, (SCREEN_W // 2, SCREEN_H - 44), COL_DIM, center=True)
 
 
-def draw_intro(surf, idx, ch):
-    surf.fill((16, 14, 24))
+def draw_intro(surf, idx, ch, backdrop=False):
+    if backdrop:
+        veil = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+        veil.fill((16, 14, 24, 216))
+        surf.blit(veil, (0, 0))
+    else:
+        surf.fill((16, 14, 24))
     num = '一二三四五六七八九十'[idx]
     _text(surf, f'第 {num} 章', 22, (SCREEN_W // 2, 110), COL_GOLD, center=True)
     _text(surf, ch['title'], 44, (SCREEN_W // 2, 165), COL_TEXT, center=True)
@@ -298,6 +319,85 @@ def _fit(pic, size):
     if pic.get_width() > size:
         return pygame.transform.smoothscale(pic, (size, size))
     return pygame.transform.scale(pic, (size, size))
+
+
+# --- 开场动画 / 天气 ---
+
+def draw_weather(surf, kind, t, area_h=None):
+    """无状态天气粒子（由时间推导，零内存）。kind: snow/embers/ash/leaves"""
+    H = area_h if area_h is not None else GRID_H * CELL
+    if kind == 'snow':
+        for i in range(56):
+            x = int(i * 127.3 + math.sin(t * 0.8 + i) * 18 + t * 14) % SCREEN_W
+            y = int(i * 61.7 + t * (46 + i % 23)) % H
+            pygame.draw.circle(surf, (235, 240, 250), (x, y), 2 if i % 3 else 3)
+    elif kind == 'embers':
+        for i in range(40):
+            x = int(i * 167.1 + math.sin(t * 1.4 + i * 0.7) * 26) % SCREEN_W
+            y = H - int(i * 53.7 + t * (34 + i % 29)) % (H + 40)
+            c = (255, 170, 60) if i % 3 else (255, 90, 40)
+            pygame.draw.circle(surf, c, (x, y), 1 if i % 2 else 2)
+    elif kind == 'ash':
+        for i in range(44):
+            x = int(i * 97.9 + math.sin(t * 0.5 + i) * 30 - t * 8) % SCREEN_W
+            y = int(i * 71.3 + t * (22 + i % 13)) % H
+            pygame.draw.circle(surf, (150, 140, 160), (x, y), 1 if i % 2 else 2)
+    elif kind == 'leaves':
+        for i in range(30):
+            x = int(i * 151.7 + t * (30 + i % 19) + math.sin(t + i) * 24) % SCREEN_W
+            y = int(i * 83.1 + t * (26 + i % 17)) % H
+            pygame.draw.circle(surf, (110, 190, 90) if i % 2 else (70, 150, 70), (x, y), 2)
+
+
+def _smooth(p):
+    return p * p * (3 - 2 * p)
+
+
+def draw_cinema(surf, img, motion, p, lines, title, t, weather=None):
+    """电影化场景：Ken Burns 运镜 + 上下黑边 + 打字机字幕。p: 0~1 场景进度"""
+    surf.fill((0, 0, 0))
+    bar = 46                                   # 上下黑边
+    view_h = SCREEN_H - bar * 2
+    if img is not None:
+        s = _smooth(p)
+        zoom = {'zoom_in': 1.0 + 0.12 * s, 'zoom_out': 1.12 - 0.12 * s}.get(motion, 1.06)
+        base = max(SCREEN_W / img.get_width(), view_h / img.get_height()) * zoom
+        w, h = int(img.get_width() * base), int(img.get_height() * base)
+        scaled = pygame.transform.smoothscale(img, (w, h))
+        max_dx = max(0, w - SCREEN_W)
+        dx = {'pan_lr': max_dx * s, 'pan_rl': max_dx * (1 - s)}.get(motion, max_dx / 2)
+        surf.blit(scaled, (-int(dx), bar - (h - view_h) // 2))
+        # 开场/收尾淡入淡出
+        fade = 0
+        if p < 0.12:
+            fade = int(255 * (1 - p / 0.12))
+        elif p > 0.92:
+            fade = int(255 * (p - 0.92) / 0.08)
+        if fade:
+            veil = pygame.Surface((SCREEN_W, SCREEN_H))
+            veil.set_alpha(fade)
+            surf.blit(veil, (0, 0))
+    if weather:
+        draw_weather(surf, weather, t, area_h=SCREEN_H)
+    pygame.draw.rect(surf, (0, 0, 0), (0, 0, SCREEN_W, bar))
+    pygame.draw.rect(surf, (0, 0, 0), (0, SCREEN_H - bar, SCREEN_W, bar))
+    # 打字机字幕
+    full = ''.join(lines)
+    shown = int(len(full) * min(1.0, p * 2.2))
+    drawn = 0
+    for li, line in enumerate(lines):
+        take = max(0, min(len(line), shown - drawn))
+        if take:
+            _text(surf, line[:take], 19,
+                  (SCREEN_W // 2, SCREEN_H - bar - 64 + li * 30), COL_TEXT, center=True)
+        drawn += len(line)
+    if title and p > 0.25:
+        alpha_p = min(1.0, (p - 0.25) / 0.3)
+        _text(surf, title, 58, (SCREEN_W // 2, SCREEN_H // 2 - 30), COL_GOLD, center=True)
+        if p > 0.55:
+            _text(surf, '— 前情提要 终 —', 16, (SCREEN_W // 2, SCREEN_H // 2 + 40),
+                  COL_DIM, center=True)
+    _text(surf, '点击 下一幕 · ESC 跳过', 13, (SCREEN_W - 180, SCREEN_H - 26), (110, 110, 125))
 
 
 # --- 旁白页 / 对话框 ---

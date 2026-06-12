@@ -104,6 +104,23 @@ def portrait(name):
     return _portraits.get(name)
 
 
+_cinema = {}
+
+
+def cinema(name):
+    """开场动画场景图（assets/cinema/<name>.jpg|.png）。缺失返回 None。"""
+    if name not in _cinema:
+        _cinema[name] = None
+        for ext in ('jpg', 'png'):
+            path = ROOT / 'assets' / 'cinema' / f'{name}.{ext}'
+            try:
+                _cinema[name] = pygame.image.load(str(path)).convert()
+                break
+            except (pygame.error, FileNotFoundError):
+                continue
+    return _cinema[name]
+
+
 def _sheet(rel):
     if rel not in _sheets:
         try:

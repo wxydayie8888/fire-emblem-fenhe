@@ -96,7 +96,18 @@ class Game:
 
     def new_game(self):
         self.chapter_idx = 0
-        self.start_pages(story.PROLOGUE, self.begin_intro)
+        if all(assets.cinema(s['img']) is not None for s in story.CINEMA_SCENES):
+            self.cinema_idx, self.cinema_t = 0, 0.0
+            self.state = 'CINEMA'              # 电影化前情提要
+        else:
+            self.start_pages(story.PROLOGUE, self.begin_intro)
+
+    def cinema_next(self, skip_all=False):
+        sfx.play('select')
+        self.cinema_idx += 1
+        self.cinema_t = 0.0
+        if skip_all or self.cinema_idx >= len(story.CINEMA_SCENES):
+            self.begin_intro()
 
     def continue_game(self):
         """从存档恢复：章节档进过场，战斗档直接回到战局。"""
@@ -603,6 +614,12 @@ class Game:
                         self.state = 'CODEX'
                     return
             return
+        if self.state == 'CINEMA':
+            if click or key in (pygame.K_RETURN, pygame.K_SPACE):
+                self.cinema_next()
+            elif key == pygame.K_ESCAPE:
+                self.cinema_next(skip_all=True)
+            return
         if self.state == 'CODEX':
             rclick = event.type == pygame.MOUSEBUTTONDOWN and event.button == 3
             if key == pygame.K_ESCAPE or rclick:
@@ -865,6 +882,11 @@ class Game:
 
     def update(self, dt):
         self.time += dt
+        if self.state == 'CINEMA':
+            self.cinema_t += dt
+            if self.cinema_t >= story.CINEMA_SCENES[self.cinema_idx]['dur']:
+                self.cinema_next()
+            return
         if self.state in ('TITLE', 'INTRO', 'COMPLETE', 'PROLOGUE', 'DIALOGUE',
                           'CODEX', 'DETAIL'):
             return
@@ -973,7 +995,8 @@ class Game:
                     avg = round(sum(d['level'] for d in roster) / len(roster))
                     summary = (f'存档：第{num}章「{CHAPTERS[idx]["title"]}」'
                                f' ｜ {len(roster)}人 平均Lv{avg}')
-            self.title_rects = ui.draw_title_menu(surf, items, summary)
+            self.title_rects = ui.draw_title_menu(surf, items, summary,
+                                                  bg=assets.cinema('keyart_title'))
             r = self.records
             if r['clears'] or r['kills']:
                 best = f' ｜ 最佳 {r["best_turns"]} 回合' if r['best_turns'] else ''
@@ -985,10 +1008,23 @@ class Game:
                 surf.blit(assets.unit_sprite(u.cls, (frame + i) % 2), (start_x + i * 84, 282))
             return
         if self.state == 'INTRO':
-            ui.draw_intro(surf, self.chapter_idx, self.chapter)
+            rows = self.chapter['map']      # 本章地图做暗化背景
+            wf = int(self.time * 1.6) % 2
+            for y in range(GRID_H):
+                for x in range(GRID_W):
+                    surf.blit(assets.terrain_sprite(rows[y][x], wf), (x * CELL, y * CELL))
+            pygame.draw.rect(surf, (16, 14, 24), (0, GRID_H * CELL, GRID_W * CELL, 100))
+            ui.draw_intro(surf, self.chapter_idx, self.chapter, backdrop=True)
             return
         if self.state == 'COMPLETE':
             ui.draw_complete(surf, self.roster, story.FATES)
+            return
+        if self.state == 'CINEMA':
+            sc = story.CINEMA_SCENES[self.cinema_idx]
+            p = min(1.0, self.cinema_t / sc['dur'])
+            ui.draw_cinema(surf, assets.cinema(sc['img']), sc.get('motion'),
+                           p, sc['lines'], sc.get('title'), self.time,
+                           weather=sc.get('weather'))
             return
         if self.state == 'PROLOGUE':
             ui.draw_prologue(surf, self.pages[self.page_idx],
@@ -1057,6 +1093,14 @@ class Game:
             veil = pygame.Surface((GRID_W * CELL, GRID_H * CELL), pygame.SRCALPHA)
             veil.fill((255, 255, 255, 80))
             surf.blit(veil, (0, 0))
+        amb = self.chapter.get('ambient')
+        if amb:                            # 章节氛围：色调 + 天气
+            if amb.get('tint'):
+                tint = pygame.Surface((GRID_W * CELL, GRID_H * CELL), pygame.SRCALPHA)
+                tint.fill(tuple(amb['tint']))
+                surf.blit(tint, (0, 0))
+            if amb.get('weather'):
+                ui.draw_weather(surf, amb['weather'], self.time)
 
         if self.selected and self.state in ('MOVE', 'MENU', 'TARGET', 'FORECAST'):
             ui.draw_cursor(surf, (self.selected.x, self.selected.y), ui.COL_GOLD)

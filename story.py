@@ -4,6 +4,20 @@
   side: 'left'=我方停靠左侧 / 'right'=敌方停靠右侧 / None=旁白居中无头像
 """
 
+# --- 开场动画（电影化前情提要；场景图缺失时自动回退到下方旁白页） ---
+CINEMA_SCENES = [
+    {'img': 'scene_plains', 'dur': 7.5, 'motion': 'pan_lr',
+     'lines': ['大陆历 1024 年。', '埃尔兰王国西境，芬河静静流淌。']},
+    {'img': 'scene_raid', 'dur': 7.5, 'motion': 'zoom_in', 'weather': 'embers',
+     'lines': ['「黑铁牙」的火把，点燃了边境的夜。', '而这，只是阴谋的开端——']},
+    {'img': 'scene_dragon', 'dur': 7.5, 'motion': 'zoom_out', 'weather': 'embers',
+     'lines': ['灰烬教团在暗处低语。', '沉眠千年的邪龙，正在苏醒。']},
+    {'img': 'scene_march', 'dur': 7.5, 'motion': 'pan_rl',
+     'lines': ['而命运选中的，是八个少年。', '他们的故事，从芬河渡口开始。']},
+    {'img': 'keyart_title', 'dur': 6.0, 'motion': 'zoom_in',
+     'title': '芬 河 战 记', 'lines': []},
+]
+
 # --- 序章旁白（新游戏开场，逐页点击） ---
 PROLOGUE = [
     ['大陆历 1024 年。',
