@@ -32,6 +32,15 @@ UNIT_SPRITES = {
     'e_myrm':   ('Player', 2, 4),      # 黑衣刀手
     'shaman':   ('Player', 7, 3),      # 红袍妖术师
     'general':  ('Player', 5, 3),      # 黑甲将军
+    'cleric':   ('Player', 1, 4),      # 白蓝裙装修女
+    'pegasus':  ('Avian', 5, 0),       # 白色飞鸟坐骑
+    'knight':   ('Humanoid', 1, 17),   # 灰色重甲兵(加斯)
+    'e_knight': ('Humanoid', 0, 7),    # 帝国褐甲兵
+    'wyvern':   ('Reptile', 0, 3),     # 红色飞龙
+    'assassin': ('Player', 6, 3),      # 暗色斗篷刺客
+    'dark_mage': ('Humanoid', 1, 10),  # 蓝黑袍暗魔道
+    'pirate':   ('Player', 3, 0),      # 红头巾海盗
+    'dragon':   ('Reptile', 0, 2),     # 黑色邪龙
 }
 
 # 地形底层图块 (sheet, col, row)；{f} 会替换为动画帧号(0/1)
@@ -66,7 +75,11 @@ FALLBACK_COLORS = {
 # 原创像素立绘（tools/gen_portraits.py 生成），按角色名索引
 PORTRAIT_FILES = {'罗伊': 'roy', '兰斯': 'lance', '丽贝卡': 'rebecca',
                   '莉莉娜': 'lilina', '菲尔': 'fir', '盖尔': 'gale',
-                  '莫尔甘': 'morgan', '巴尔克': 'balk'}
+                  '莫尔甘': 'morgan', '巴尔克': 'balk',
+                  '西娅': 'thea', '艾莉丝': 'elise', '加斯': 'gus',
+                  '道森': 'dawson', '加洛': 'garo', '薇拉': 'vera',
+                  '雷文': 'raven', '克鲁格': 'krug', '沃尔甘': 'volgan',
+                  '法夫尼尔': 'fafnir'}
 _portraits = {}
 
 

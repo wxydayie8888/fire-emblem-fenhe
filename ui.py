@@ -339,20 +339,19 @@ def draw_codex(surf, entries, sel, pic_fn):
     _text(surf, '点击 / ←→ 切换 · ESC 或右键返回标题', 13,
           (SCREEN_W // 2, 58), COL_DIM, center=True)
     rects = []
-    y = 84
+    y = 78
     for i, (name, b) in enumerate(entries):
-        r = pygame.Rect(20, y, 150, 48)
+        r = pygame.Rect(20, y, 150, 24)
         if i == sel:
-            pygame.draw.rect(surf, COL_PANEL_LIGHT, r, border_radius=8)
-            pygame.draw.rect(surf, COL_GOLD, r, 2, border_radius=8)
+            pygame.draw.rect(surf, COL_PANEL_LIGHT, r, border_radius=6)
+            pygame.draw.rect(surf, COL_GOLD, r, 1, border_radius=6)
         else:
-            pygame.draw.rect(surf, COL_PANEL, r, border_radius=8)
-            pygame.draw.rect(surf, COL_BORDER, r, 1, border_radius=8)
+            pygame.draw.rect(surf, COL_PANEL, r, border_radius=6)
         is_enemy = not CLASSES[b['cls']]['growth']
-        _text(surf, name, 18, (r.x + 14, r.y + 13),
+        _text(surf, name, 15, (r.x + 12, r.y + 4),
               COL_ENEMY if is_enemy else COL_TEXT)
         rects.append(r)
-        y += 56
+        y += 26
     # 右侧详情
     name, b = entries[sel]
     c = CLASSES[b['cls']]
