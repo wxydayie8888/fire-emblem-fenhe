@@ -10,8 +10,10 @@ from pathlib import Path
 from settings import CHAPTERS, CLASSES, PLAYER_ROSTER
 from unit import SAVE_FIELDS
 
+from paths import user_data_dir
+
 SAVE_VERSION = 4      # v4: 支持战斗中挂起存档（kind: chapter / battle）
-SAVE_PATH = Path(__file__).resolve().parent / 'save.json'
+SAVE_PATH = user_data_dir() / 'save.json'
 
 # 合法角色名 = 基础队伍 + 各章 join
 _LEGAL_NAMES = ({s['name'] for s in PLAYER_ROSTER}

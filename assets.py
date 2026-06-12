@@ -12,7 +12,8 @@ import pygame
 
 from settings import TILE, CELL
 
-ROOT = Path(__file__).resolve().parent
+from paths import resource_root
+ROOT = resource_root()
 _asset_dir = None
 _sheets = {}      # 相对路径 -> Surface（原始尺寸）
 _unit_cache = {}

@@ -233,9 +233,14 @@ def draw_title_menu(surf, items, summary):
     return rects
 
 
+def draw_records_line(surf, text):
+    """标题画面底部的战绩行。"""
+    _text(surf, text, 14, (SCREEN_W // 2, SCREEN_H - 44), COL_DIM, center=True)
+
+
 def draw_intro(surf, idx, ch):
     surf.fill((16, 14, 24))
-    num = '一二三'[idx]
+    num = '一二三四五六七八九十'[idx]
     _text(surf, f'第 {num} 章', 22, (SCREEN_W // 2, 110), COL_GOLD, center=True)
     _text(surf, ch['title'], 44, (SCREEN_W // 2, 165), COL_TEXT, center=True)
     for i, line in enumerate(ch['story']):
@@ -248,7 +253,7 @@ def draw_clear(surf, idx, title, turns):
     veil = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
     veil.fill((10, 10, 16, 180))
     surf.blit(veil, (0, 0))
-    num = '一二三'[idx]
+    num = '一二三四五六七八九十'[idx]
     _text(surf, '制 压 ！', 52, (SCREEN_W // 2, GRID_H * CELL // 2 - 50), COL_GOLD, center=True)
     _text(surf, f'第{num}章「{title}」 用时 {turns} 回合', 20,
           (SCREEN_W // 2, GRID_H * CELL // 2 + 20), COL_TEXT, center=True)

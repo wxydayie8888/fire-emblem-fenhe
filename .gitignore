@@ -5,3 +5,4 @@ __pycache__/
 .venv/
 save.json
 .libtv/
+records.json

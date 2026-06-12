@@ -10,6 +10,7 @@ import pygame
 
 import assets
 import combat
+import records
 import save
 import sfx
 import story
@@ -36,6 +37,7 @@ class Game:
     def full_reset(self):
         """回到标题画面，重建战役。"""
         self.chapter_idx = 0
+        self.camp_turns = 0            # 本周目累计回合（战绩用）
         self.roster = [Unit(s['name'], s['cls'], 'player', (0, 0)) for s in PLAYER_ROSTER]
         self.snapshot = None
         self.units = []
@@ -48,6 +50,7 @@ class Game:
         self.pages, self.page_idx, self.after_pages = [], 0, None
         self.boss_quote_shown = False
         self.save_data = save.load_game()      # None = 无可用存档
+        self.records = records.load()          # 战绩记忆
         self.title_rects = []
         self.codex_sel, self.codex_rects = 0, []
         self.detail_unit, self.detail_return = None, 'IDLE'
@@ -62,6 +65,7 @@ class Game:
         self.menu_items, self.menu_rects, self.menu_sel = [], [], 0
         self.targets, self.target, self.fc = [], None, None
         self.target_mode = 'attack'
+        self.map_menu_pos = (0, 0)
         self.threat, self.threat_unit = set(), None
         self.threat_all = False        # D键：全敌威胁范围
         self.dying = []                # 死亡淡出动画 [{'unit','t'}]
@@ -94,12 +98,47 @@ class Game:
         self.start_pages(story.PROLOGUE, self.begin_intro)
 
     def continue_game(self):
-        """从存档恢复队伍与章节，进入章节过场。"""
+        """从存档恢复：章节档进过场，战斗档直接回到战局。"""
         sd = self.save_data
         self.chapter_idx = sd['chapter_idx']
-        self.roster = [Unit.from_dict(d) for d in sd['roster']]
-        self.snapshot = copy.deepcopy(self.roster)
-        self.begin_intro()
+        self.camp_turns = sd.get('camp_turns', 0)
+        if sd.get('kind') == 'battle':
+            self.restore_battle(sd)
+        else:
+            self.roster = [Unit.from_dict(d) for d in sd['roster']]
+            self.snapshot = copy.deepcopy(self.roster)
+            self.begin_intro()
+
+    def restore_battle(self, sd):
+        """精确恢复挂起的战局。"""
+        self.roster = [Unit.from_battle_dict(d) for d in sd['roster_meta']]
+        self.snapshot = [Unit.from_dict(d) for d in sd['snapshot']]
+        enemies = [Unit.from_battle_dict(d) for d in sd['enemies']]
+        self.units = self.roster + enemies
+        self.grid = Grid(self.chapter['map'])
+        self._clear_battle_state()
+        self.turn = sd['turn']
+        self.boss_quote_shown = sd['boss_quote_shown']
+        self.reinforce_used = set(sd['reinforce_used'])
+        self.pending_reinforce = list(sd['pending_reinforce'])
+        self.show_banner(f'第 {self.turn} 回合  继续战斗', ui.COL_PLAYER)
+        sfx.play('turn')
+        self.state = 'IDLE'
+
+    def save_battle_state(self):
+        """战斗中挂起存档（地图菜单「保存进度」）。"""
+        save.save_battle({
+            'chapter_idx': self.chapter_idx,
+            'turn': self.turn,
+            'camp_turns': self.camp_turns,
+            'boss_quote_shown': self.boss_quote_shown,
+            'reinforce_used': sorted(self.reinforce_used),
+            'pending_reinforce': list(self.pending_reinforce),
+            'roster_meta': [u.to_battle_dict() for u in self.roster],
+            'snapshot': [u.to_dict() for u in self.snapshot],
+            'enemies': [u.to_battle_dict() for u in self.units
+                        if u.team == 'enemy' and u.alive],
+        })
 
     # ---------- 对话/旁白播放器 ----------
 
@@ -157,7 +196,8 @@ class Game:
             u.potions = POTION_USES
         if not retry:
             self.snapshot = copy.deepcopy(self.roster)
-            save.save_game(self.chapter_idx, [u.to_dict() for u in self.roster])
+            save.save_game(self.chapter_idx, [u.to_dict() for u in self.roster],
+                           camp_turns=self.camp_turns)
         enemies = []
         for e in ch['enemies']:
             u = Unit(e['name'], e['cls'], 'enemy', e['pos'],
@@ -185,8 +225,10 @@ class Game:
 
     def chapter_clear(self):
         sfx.play('victory')
+        self.camp_turns += self.turn
         if self.chapter_idx + 1 < len(CHAPTERS):
-            save.save_game(self.chapter_idx + 1, [u.to_dict() for u in self.roster])
+            save.save_game(self.chapter_idx + 1, [u.to_dict() for u in self.roster],
+                           camp_turns=self.camp_turns)
         else:
             save.delete_save()         # 通关删档
         self.state = 'CLEAR'
@@ -201,6 +243,7 @@ class Game:
 
     def _enter_complete(self):
         save.delete_save()             # 幂等兜底
+        self.records = records.add_clear(self.camp_turns)
         self.state = 'COMPLETE'
 
     # ---------- 回合调度 ----------
@@ -303,6 +346,14 @@ class Game:
         self.move_tiles, self.fringe = self._range_tiles(unit)
         self.state = 'MOVE'
 
+    def open_map_menu(self, cell):
+        """火纹式地图菜单：点击空地呼出。"""
+        sfx.play('select')
+        self.map_menu_pos = cell
+        self.menu_items = [('结束回合', True), ('保存进度', True)]
+        self.menu_sel = 0
+        self.state = 'MAP_MENU'
+
     def select_next_unit(self):
         """Tab 循环选择下一个未行动单位。"""
         avail = [u for u in self.alive('player') if not u.acted]
@@ -398,12 +449,15 @@ class Game:
         self.state = 'COMBAT'
 
     def combat_finished(self):
-        # 死亡淡出动画
+        # 死亡淡出动画 + 击破计数
         dead = {u for ev in self.combat_events for u in (ev['actor'], ev['target'])
                 if not u.alive}
         for u in dead:
             self.dying.append({'unit': u, 't': 0.0})
             sfx.play('die')
+        enemy_dead = len([u for u in dead if u.team == 'enemy'])
+        if enemy_dead:
+            self.records = records.add_kills(enemy_dead)
         # 被打的驻守敌人被激活
         for ev in self.combat_events:
             t = ev['target']
@@ -479,7 +533,7 @@ class Game:
         if event.type == pygame.MOUSEMOTION:
             mx, my = event.pos
             self.hover = (mx // CELL, my // CELL) if my < GRID_H * CELL else None
-            if self.state == 'MENU':
+            if self.state in ('MENU', 'MAP_MENU'):
                 for i, r in enumerate(self.menu_rects):
                     if r.collidepoint(event.pos):
                         self.menu_sel = i
@@ -617,7 +671,10 @@ class Game:
                 self.click(event.pos)
 
     def cancel(self):
-        if self.state == 'MOVE':
+        if self.state == 'MAP_MENU':
+            sfx.play('cancel')
+            self.state = 'IDLE'
+        elif self.state == 'MOVE':
             sfx.play('cancel')
             self.clear_selection()
             self.state = 'IDLE'
@@ -638,6 +695,21 @@ class Game:
     def click(self, pos):
         mx, my = pos
         cell = (mx // CELL, my // CELL) if my < GRID_H * CELL else None
+
+        if self.state == 'MAP_MENU':
+            for i, r in enumerate(self.menu_rects):
+                if r.collidepoint(pos):
+                    label = self.menu_items[i][0]
+                    sfx.play('confirm')
+                    self.state = 'IDLE'
+                    if label == '结束回合':
+                        self.start_enemy_phase()
+                    else:                          # 保存进度
+                        self.save_battle_state()
+                        self.add_float('已保存', self.map_menu_pos, ui.COL_GOLD)
+                    return
+            self.state = 'IDLE'                    # 点菜单外关闭
+            return
 
         if self.state == 'MENU':
             for i, r in enumerate(self.menu_rects):
@@ -673,6 +745,7 @@ class Game:
                 self.toggle_threat(u)
             else:
                 self.threat, self.threat_unit = set(), None
+                self.open_map_menu(cell)         # 空地 → 地图菜单
 
         elif self.state == 'MOVE':
             u = self.unit_at(cell)
@@ -833,12 +906,24 @@ class Game:
                      ('人物图鉴', True)]
             summary = None
             if self.save_data is not None:
-                idx = self.save_data['chapter_idx']
-                roster = self.save_data['roster']
-                avg = round(sum(d['level'] for d in roster) / len(roster))
-                summary = (f'存档：第{"一二三"[idx]}章「{CHAPTERS[idx]["title"]}」'
-                           f' ｜ {len(roster)}人 平均Lv{avg}')
+                sd = self.save_data
+                idx = sd['chapter_idx']
+                num = '一二三四五六七八九十'[idx]
+                if sd.get('kind') == 'battle':
+                    alive = len([d for d in sd['roster_meta'] if d['hp'] > 0])
+                    summary = (f'存档：第{num}章「{CHAPTERS[idx]["title"]}」'
+                               f'战斗中·回合{sd["turn"]} ｜ {alive}人存活')
+                else:
+                    roster = sd['roster']
+                    avg = round(sum(d['level'] for d in roster) / len(roster))
+                    summary = (f'存档：第{num}章「{CHAPTERS[idx]["title"]}」'
+                               f' ｜ {len(roster)}人 平均Lv{avg}')
             self.title_rects = ui.draw_title_menu(surf, items, summary)
+            r = self.records
+            if r['clears'] or r['kills']:
+                best = f' ｜ 最佳 {r["best_turns"]} 回合' if r['best_turns'] else ''
+                ui.draw_records_line(
+                    surf, f'通关 {r["clears"]} 周目 ｜ 累计击破 {r["kills"]}{best}')
             frame = int(self.time * 2.4)
             start_x = (720 - len(self.roster) * 84) // 2
             for i, u in enumerate(self.roster):
@@ -949,6 +1034,10 @@ class Game:
         if self.state == 'MENU':
             px = (self.selected.x + 1) * CELL + 4
             py = self.selected.y * CELL
+            self.menu_rects = ui.draw_menu(surf, self.menu_items, self.menu_sel, px, py)
+        elif self.state == 'MAP_MENU':
+            px = min((self.map_menu_pos[0] + 1) * CELL + 4, 720 - 130)
+            py = min(self.map_menu_pos[1] * CELL, GRID_H * CELL - 90)
             self.menu_rects = ui.draw_menu(surf, self.menu_items, self.menu_sel, px, py)
         elif self.state == 'FORECAST':
             ui.draw_forecast(surf, self.fc, self.selected, self.target)
