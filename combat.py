@@ -31,7 +31,20 @@ def calc_crit(att):
     return WEAPONS[att.weapon]['crit'] + att.skl // 2
 
 
+def can_attack(unit):
+    """杖类武器（heal=True）不能攻击。"""
+    return not WEAPONS[unit.weapon].get('heal')
+
+
+def heal_amount(healer):
+    """治疗杖回复量 = 基础值 + 力量。"""
+    from settings import STAFF_BASE_HEAL
+    return STAFF_BASE_HEAL + healer.pow
+
+
 def in_range(unit, dist):
+    if not can_attack(unit):
+        return False
     lo, hi = WEAPONS[unit.weapon]['range']
     return lo <= dist <= hi
 

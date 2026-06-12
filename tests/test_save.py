@@ -47,7 +47,7 @@ def test_load_invalid_rejected(tmp_path):
          'roster': roster_dicts()[1:]},                                               # 首位不是领主
     ]
     bad_cls = roster_dicts()
-    bad_cls[1]['cls'] = 'dragon'                                                      # 非法职业
+    bad_cls[1]['cls'] = 'slime'                                                       # 非法职业
     cases.append({'version': save.SAVE_VERSION, 'chapter_idx': 0, 'roster': bad_cls})
     bad_field = roster_dicts()
     del bad_field[2]['spd']                                                           # 缺字段

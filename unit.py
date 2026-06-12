@@ -19,6 +19,7 @@ class Unit:
             c['pow'], c['skl'], c['spd'], c['dfn'], c['mov'])
         self.weapon = c['weapon']
         self.mounted = c.get('mounted', False)
+        self.fly = c.get('fly', False)
         self.growth = c['growth']
         self.boss = boss
         self.ai = ai                 # 'aggro' 主动 / 'guard' 驻守

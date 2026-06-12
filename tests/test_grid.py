@@ -58,3 +58,13 @@ def test_attack_tiles_ring():
 
 def test_manhattan():
     assert manhattan((0, 0), (3, 4)) == 7
+
+
+def test_flier_crosses_water_and_walls():
+    g = Grid(["PWRWP"] * 3 + ["PPPPP"] * 2)
+    peg = Unit('天马', 'pegasus', 'player', (0, 1))
+    tiles = move_range(peg, g, [peg])
+    assert (4, 1) in tiles          # 飞越 水-墙-水
+    assert (2, 1) in tiles          # 可停在墙顶
+    foot = Unit('步兵', 'lord', 'player', (0, 1))
+    assert (4, 1) not in move_range(foot, g, [foot])

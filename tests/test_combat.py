@@ -82,3 +82,10 @@ def test_enemy_gains_no_exp():
     a, d = fighter(), lord(hp=99)
     _, exp = combat.resolve(a, d, 1, 0, 0, rng=lambda: 0.5)
     assert a not in exp
+
+
+def test_breath_weapon_range():
+    dragon = Unit('邪龙', 'dragon', 'enemy', (0, 0), boss=True)
+    assert combat.in_range(dragon, 1) and combat.in_range(dragon, 2)
+    assert not combat.in_range(dragon, 3)
+    assert combat.calc_damage(dragon, Unit('R', 'lord', 'player', (1, 0))) > 0

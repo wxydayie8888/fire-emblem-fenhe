@@ -19,12 +19,18 @@ class Grid:
 
     def cost(self, x, y, unit):
         """unit 进入 (x,y) 的移动消耗；None=不可进入"""
+        if unit.fly:
+            return 1                 # 飞行单位无视全部地形
         t = self.terrain(x, y)
         if t['cost'] is None:
             return None
         if unit.mounted and t.get('no_mount'):
             return None
         return t['cost']
+
+    def avoid(self, unit):
+        """unit 所站地形的回避加成（飞行单位不享受地形加成）"""
+        return 0 if unit.fly else self.terrain(unit.x, unit.y)['avoid']
 
 
 def neighbors(x, y):

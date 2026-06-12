@@ -92,3 +92,17 @@ def test_from_dict_roundtrip():
     assert r.team == 'player'
     # 职业派生属性来自职业表，不来自存档
     assert r.mov == 5 and r.weapon == 'sword' and r.growth
+
+
+def test_flying_class_flag():
+    peg = Unit('艾莉丝', 'pegasus', 'player', (0, 0))
+    assert peg.fly
+    assert not make_lord().fly
+
+
+def test_cleric_cannot_attack_but_heals():
+    import combat
+    thea = Unit('西娅', 'cleric', 'player', (0, 0))
+    assert not combat.can_attack(thea)
+    assert combat.can_attack(make_lord())
+    assert combat.heal_amount(thea) == 10 + thea.pow

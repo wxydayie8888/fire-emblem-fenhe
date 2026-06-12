@@ -30,7 +30,10 @@ WEAPONS = {
     'axe':   {'name': '斧',   'might': 8, 'hit': 70, 'crit': 0, 'range': (1, 1)},
     'bow':   {'name': '弓',   'might': 6, 'hit': 85, 'crit': 0, 'range': (2, 2)},
     'magic': {'name': '魔法', 'might': 8, 'hit': 85, 'crit': 5, 'range': (1, 2)},
+    'staff': {'name': '杖',   'might': 0, 'hit': 0,  'crit': 0, 'range': (1, 1), 'heal': True},
+    'breath': {'name': '吐息', 'might': 12, 'hit': 90, 'crit': 0, 'range': (1, 2)},
 }
+STAFF_BASE_HEAL = 10   # 治疗量 = 基础 + 力量
 WEAPON_BEATS = {'sword': 'axe', 'axe': 'lance', 'lance': 'sword'}  # 剑克斧 斧克枪 枪克剑
 TRIANGLE_DMG, TRIANGLE_HIT = 1, 15
 
@@ -52,6 +55,15 @@ CLASSES = {
     'myrmidon': {'name': '剑士',   'hp': 20, 'pow': 8,  'skl': 11, 'spd': 11, 'dfn': 4,  'mov': 5,
                  'weapon': 'sword',
                  'growth': {'hp': 65, 'pow': 45, 'skl': 65, 'spd': 65, 'dfn': 20}},
+    'cleric':   {'name': '修女',   'hp': 18, 'pow': 5,  'skl': 7,  'spd': 8,  'dfn': 3,  'mov': 5,
+                 'weapon': 'staff',
+                 'growth': {'hp': 55, 'pow': 40, 'skl': 50, 'spd': 55, 'dfn': 25}},
+    'pegasus':  {'name': '天马骑士', 'hp': 20, 'pow': 7, 'skl': 8,  'spd': 11, 'dfn': 5,  'mov': 7,
+                 'weapon': 'lance', 'fly': True,
+                 'growth': {'hp': 60, 'pow': 45, 'skl': 55, 'spd': 60, 'dfn': 30}},
+    'knight':   {'name': '重甲兵', 'hp': 26, 'pow': 9,  'skl': 6,  'spd': 4,  'dfn': 11, 'mov': 4,
+                 'weapon': 'lance',
+                 'growth': {'hp': 80, 'pow': 50, 'skl': 35, 'spd': 25, 'dfn': 55}},
     # 敌方职业（不升级，无成长率）
     'fighter':  {'name': '斧战士', 'hp': 20, 'pow': 7,  'skl': 5,  'spd': 5,  'dfn': 4,  'mov': 5,
                  'weapon': 'axe', 'growth': {}},
@@ -67,6 +79,18 @@ CLASSES = {
                  'weapon': 'magic', 'growth': {}},
     'general':  {'name': '重甲将军', 'hp': 30, 'pow': 9,  'skl': 6, 'spd': 4,  'dfn': 9,  'mov': 4,
                  'weapon': 'lance', 'growth': {}},
+    'e_knight': {'name': '帝国重甲', 'hp': 24, 'pow': 8, 'skl': 5, 'spd': 4,  'dfn': 10, 'mov': 4,
+                 'weapon': 'lance', 'growth': {}},
+    'wyvern':   {'name': '龙骑士', 'hp': 24, 'pow': 9,  'skl': 7,  'spd': 8,  'dfn': 8,  'mov': 7,
+                 'weapon': 'lance', 'fly': True, 'growth': {}},
+    'assassin': {'name': '刺客',   'hp': 20, 'pow': 7,  'skl': 12, 'spd': 12, 'dfn': 4,  'mov': 6,
+                 'weapon': 'sword', 'growth': {}},
+    'dark_mage': {'name': '暗魔道士', 'hp': 20, 'pow': 8, 'skl': 7, 'spd': 7, 'dfn': 4,  'mov': 5,
+                  'weapon': 'magic', 'growth': {}},
+    'pirate':   {'name': '海盗',   'hp': 22, 'pow': 8,  'skl': 5,  'spd': 6,  'dfn': 4,  'mov': 5,
+                 'weapon': 'axe', 'growth': {}},
+    'dragon':   {'name': '邪龙',   'hp': 52, 'pow': 13, 'skl': 9,  'spd': 5,  'dfn': 12, 'mov': 4,
+                 'weapon': 'breath', 'growth': {}},
 }
 
 # --- 战役队伍（基础 4 人，菲尔第 2 章加入） ---
