@@ -71,6 +71,7 @@ class Game:
         self.dying = []                # 死亡淡出动画 [{'unit','t'}]
         self.flash_t = 0.0             # 必杀白闪
         self.end_confirm_t = 0.0       # E键二次确认窗口
+        self.ff = False                # 空格按住：3倍速快进
         self.combat_events, self.combat_idx = [], 0
         self.event_t, self.event_spawned = 0.0, False
         self.hp_display = {}
@@ -111,23 +112,17 @@ class Game:
 
     def restore_battle(self, sd):
         """精确恢复挂起的战局。"""
-        self.roster = [Unit.from_battle_dict(d) for d in sd['roster_meta']]
-        self.snapshot = [Unit.from_dict(d) for d in sd['snapshot']]
-        enemies = [Unit.from_battle_dict(d) for d in sd['enemies']]
-        self.units = self.roster + enemies
         self.grid = Grid(self.chapter['map'])
-        self._clear_battle_state()
-        self.turn = sd['turn']
-        self.boss_quote_shown = sd['boss_quote_shown']
-        self.reinforce_used = set(sd['reinforce_used'])
-        self.pending_reinforce = list(sd['pending_reinforce'])
+        self._apply_payload(sd)
+        self.undo_stack, self.undo_left = [], 10
+        self.pending_undo = None
         self.show_banner(f'第 {self.turn} 回合  继续战斗', ui.COL_PLAYER)
         sfx.play('turn')
         self.state = 'IDLE'
 
-    def save_battle_state(self):
-        """战斗中挂起存档（地图菜单「保存进度」）。"""
-        save.save_battle({
+    def _battle_payload(self):
+        """当前战局的完整可序列化快照（挂起存档与时光回溯共用）。"""
+        return {
             'chapter_idx': self.chapter_idx,
             'turn': self.turn,
             'camp_turns': self.camp_turns,
@@ -138,7 +133,44 @@ class Game:
             'snapshot': [u.to_dict() for u in self.snapshot],
             'enemies': [u.to_battle_dict() for u in self.units
                         if u.team == 'enemy' and u.alive],
-        })
+        }
+
+    def save_battle_state(self):
+        """战斗中挂起存档（地图菜单「保存进度」）。"""
+        save.save_battle(self._battle_payload())
+
+    def _apply_payload(self, sd):
+        """从快照恢复战局（读档与时光回溯共用）。"""
+        self.roster = [Unit.from_battle_dict(d) for d in sd['roster_meta']]
+        self.snapshot = [Unit.from_dict(d) for d in sd['snapshot']]
+        enemies = [Unit.from_battle_dict(d) for d in sd['enemies']]
+        self.units = self.roster + enemies
+        self._clear_battle_state()
+        self.turn = sd['turn']
+        self.camp_turns = sd.get('camp_turns', self.camp_turns)
+        self.boss_quote_shown = sd['boss_quote_shown']
+        self.reinforce_used = set(sd['reinforce_used'])
+        self.pending_reinforce = list(sd['pending_reinforce'])
+
+    def commit_undo(self):
+        """把待定快照压入回溯栈（在行动不可逆地开始时调用）。"""
+        if self.pending_undo is not None:
+            self.undo_stack.append(self.pending_undo)
+            self.pending_undo = None
+            if len(self.undo_stack) > 10:
+                self.undo_stack.pop(0)
+
+    def can_undo(self):
+        return bool(self.undo_stack) and self.undo_left > 0
+
+    def do_undo(self):
+        """时光回溯：回到上一次我方行动开始前。"""
+        sd = self.undo_stack.pop()
+        self.undo_left -= 1
+        self._apply_payload(sd)
+        sfx.play('cancel')
+        self.show_banner(f'时 光 回 溯（剩 {self.undo_left} 次）', (170, 140, 255))
+        self.state = 'IDLE'
 
     # ---------- 对话/旁白播放器 ----------
 
@@ -211,6 +243,8 @@ class Game:
         self._clear_battle_state()
         self.boss_quote_shown = False
         self.pending_reinforce, self.reinforce_used = [], set()
+        self.undo_stack, self.undo_left = [], 10    # 时光回溯：每战 10 次
+        self.pending_undo = None
         self.state = 'IDLE'
 
     def enter_battle(self):
@@ -340,6 +374,7 @@ class Game:
 
     def select(self, unit):
         sfx.play('select')
+        self.pending_undo = self._battle_payload()   # 行动前快照（待提交）
         self.threat, self.threat_unit = set(), None
         self.selected = unit
         self.orig_pos = (unit.x, unit.y)
@@ -350,7 +385,8 @@ class Game:
         """火纹式地图菜单：点击空地呼出。"""
         sfx.play('select')
         self.map_menu_pos = cell
-        self.menu_items = [('结束回合', True), ('保存进度', True)]
+        self.menu_items = [('结束回合', True), ('保存进度', True),
+                           (f'回溯×{self.undo_left}', self.can_undo())]
         self.menu_sel = 0
         self.state = 'MAP_MENU'
 
@@ -530,6 +566,10 @@ class Game:
     # ---------- 输入 ----------
 
     def handle(self, event):
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            self.ff = True
+        elif event.type == pygame.KEYUP and event.key == pygame.K_SPACE:
+            self.ff = False
         if event.type == pygame.MOUSEMOTION:
             mx, my = event.pos
             self.hover = (mx // CELL, my // CELL) if my < GRID_H * CELL else None
@@ -618,6 +658,8 @@ class Game:
             if key == pygame.K_r:
                 sfx.play('confirm')
                 self.start_chapter(retry=True)
+            elif key == pygame.K_z and self.can_undo():
+                self.do_undo()                     # 败北瞬间的后悔药
             return
 
         # --- 战斗动画进行中不接受操作 ---
@@ -646,6 +688,11 @@ class Game:
                 else:
                     self.end_confirm_t = 2.0
                     self.show_banner('尚有未行动单位 · 再按 E 确认', ui.COL_GOLD)
+            elif key == pygame.K_z and self.state == 'IDLE':
+                if self.can_undo():
+                    self.do_undo()
+                else:
+                    self.show_banner('无法回溯', ui.COL_DIM)
             elif key == pygame.K_d and self.state in ('IDLE', 'MOVE'):
                 self.threat_all = not self.threat_all
                 sfx.play('select')
@@ -698,15 +745,17 @@ class Game:
 
         if self.state == 'MAP_MENU':
             for i, r in enumerate(self.menu_rects):
-                if r.collidepoint(pos):
+                if r.collidepoint(pos) and self.menu_items[i][1]:
                     label = self.menu_items[i][0]
                     sfx.play('confirm')
                     self.state = 'IDLE'
                     if label == '结束回合':
                         self.start_enemy_phase()
-                    else:                          # 保存进度
+                    elif label == '保存进度':
                         self.save_battle_state()
                         self.add_float('已保存', self.map_menu_pos, ui.COL_GOLD)
+                    elif self.can_undo():          # 时光回溯
+                        self.do_undo()
                     return
             self.state = 'IDLE'                    # 点菜单外关闭
             return
@@ -724,12 +773,14 @@ class Game:
                         self.targets = self.heal_targets_from(self.selected)
                         self.state = 'TARGET'
                     elif label == '用药':
+                        self.commit_undo()
                         healed = self.selected.use_potion()
                         self.add_float(f'+{healed}', (self.selected.x, self.selected.y),
                                        (120, 230, 120))
                         sfx.play('heal')
                         self.finish_unit()
                     else:
+                        self.commit_undo()
                         self.finish_unit()
                     return
             return
@@ -783,6 +834,7 @@ class Game:
 
     def perform_heal(self, target):
         """修女治疗：立即结算，无预测无反击。"""
+        self.commit_undo()
         sfx.play('heal')
         amount = min(combat.heal_amount(self.selected), target.max_hp - target.hp)
         target.heal(amount)
@@ -800,6 +852,7 @@ class Game:
 
     def confirm_attack(self):
         sfx.play('confirm')
+        self.commit_undo()
         if self.target.boss and not self.boss_quote_shown:
             self.boss_quote_shown = True
             att, dfd = self.selected, self.target
@@ -815,6 +868,8 @@ class Game:
         if self.state in ('TITLE', 'INTRO', 'COMPLETE', 'PROLOGUE', 'DIALOGUE',
                           'CODEX', 'DETAIL'):
             return
+        if self.ff and self.state in ('ENEMY_TURN', 'COMBAT'):
+            dt *= 3                    # 空格按住：战斗/敌方回合快进
         for f in self.floats:
             f['t'] += dt / FLOAT_DUR
         self.floats = [f for f in self.floats if f['t'] < 1.0]
@@ -953,7 +1008,10 @@ class Game:
                 surf.blit(assets.terrain_sprite(ch, water_frame, variant), (x * CELL, y * CELL))
 
         if self.threat_all and self.state in ('IDLE', 'MOVE'):
-            ui.draw_tiles(surf, self.all_threat_tiles(), ui.ATTACK_TILE)
+            self._danger_tiles = self.all_threat_tiles()
+            ui.draw_tiles(surf, self._danger_tiles, ui.ATTACK_TILE)
+        else:
+            self._danger_tiles = set()
         if self.state == 'MOVE':
             ui.draw_tiles(surf, self.fringe, ui.ATTACK_TILE)
             ui.draw_tiles(surf, self.move_tiles, ui.MOVE_TILE)
@@ -986,6 +1044,9 @@ class Game:
                 ui.draw_hp_bar(surf, u, px, py)
             if u.boss:
                 ui.draw_boss_mark(surf, px, py)
+            if (u.team == 'player' and self._danger_tiles
+                    and (u.x, u.y) in self._danger_tiles):
+                ui.draw_danger_mark(surf, px, py)   # 处于敌方威胁中
 
         for d in self.dying:               # 死亡淡出
             u = d['unit']
@@ -1048,9 +1109,11 @@ class Game:
             ui.draw_unit_detail(surf, self.detail_unit,
                                 story.BIOS.get(self.detail_unit.name))
 
+        if self.ff and self.state in ('ENEMY_TURN', 'COMBAT'):
+            ui.draw_ff_indicator(surf)
         if self.banner is not None:
             ui.draw_banner(surf, self.banner['text'], self.banner['t'], self.banner['color'])
         if self.state == 'CLEAR':
             ui.draw_clear(surf, self.chapter_idx, self.chapter['title'], self.turn)
         elif self.state == 'END':
-            ui.draw_defeat(surf)
+            ui.draw_defeat(surf, self.can_undo())

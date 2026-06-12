@@ -1,0 +1,335 @@
+{
+  "summary": "Deep research harness — fan-out web searches, fetch sources, adversarially verify claims, synthesize a cited report.",
+  "agentCount": 104,
+  "logs": [
+    "Q: 研究课题：2023-2026 年火焰纹章系列及一线战棋/SLG 游戏的 UI/UX 设计演进，以及对一款 2D 像素风火纹式独立游戏的可借鉴点。具体要求：1) …",
+    "Decomposed into 5 angles: 第一方标杆：火焰纹章最新作 UI/QoL, 同类竞品：高口碑战棋的公认 UI 创新, 行业趋势与设计方法论, 风格化菜单动效美学, 落地实践：像素独立战棋 UI 实现",
+    "同类竞品：高口碑战棋的公认 UI 创新: 6 results",
+    "第一方标杆：火焰纹章最新作 UI/QoL: 6 results",
+    "落地实践：像素独立战棋 UI 实现: 6 results",
+    "落地实践：像素独立战棋 UI 实现: 4 novel (2 filtered)",
+    "风格化菜单动效美学: 6 results",
+    "风格化菜单动效美学: 4 novel (2 filtered)",
+    "行业趋势与设计方法论: 6 results",
+    "行业趋势与设计方法论: 2 novel (4 filtered)",
+    "Fetched 22 sources → 105 claims → verifying top 25",
+    "\"该设计刻意将玩家回合做成确定性（无随机意外），所有不确定性只发生在敌方回合——即玩家行动结果完全可预…\": 3-0 ✓",
+    "\"Atlus 团队在开发 Metaphor: ReFantazio 时有意识地将其 UI 视觉风格与 …\": 3-0 ✓",
+    "\"Tactical Breach Wizards 从最初设计立项起就将“无限回退/重排回合”作为核心机…\": 3-0 ✓",
+    "\"《火焰纹章 Engage》提供时之水晶（Time Crystal）回溯机制：玩家走错一步后可以将时间…\": 3-0 ✓",
+    "\"玩家逐个给单位下令并立即看到执行结果，再回退给下一个单位下令，最终所有指令同时执行——一种把“行动预…\": 0-3 ✗",
+    "\"《火焰纹章 Engage》通过角色头顶的小图标提示连锁攻击/破防等战斗机制即将触发，使战术决策的信息…\": 2-1 ✓",
+    "\"Fire Emblem Engage 的回退机制名为 Draconic Time Crystal（龙…\": 3-0 ✓",
+    "\"Fire Emblem Engage's bold, exaggerated character d…\": 3-0 ✓",
+    "\"《火焰纹章 Engage》中的回退机制（龙之时水晶 Draconic Time Crystal）是《…\": 3-0 ✓",
+    "\"回退次数按难度分层设计：Normal 难度每场战斗无限次回退，Hard 和 Maddening 难度…\": 3-0 ✓",
+    "\"Engage 的回退次数按难度分级：普通难度下回退次数无限。…\": 3-0 ✓",
+    "\"Engage 回退功能的 UI 实现方式是：从菜单选择 Time Crystal 后弹出一个按时间顺…\": 3-0 ✓",
+    "\"在较高难度（Hard/Maddening）下，每场战斗的回退次数被限制为 10 次。…\": 3-0 ✓",
+    "\"在 Engage 中，玩家可在己方回合的任意时刻通过按下手柄的 '+' 键调出时水晶，回退到战斗中较…\": 3-0 ✓",
+    "\"Engage 之后的火焰纹章系列最新作《Fire Emblem Shadows》（2025年9月25…\": 3-0 ✓",
+    "\"Tactical Breach Wizards 内置随时回退（rewind）机制：玩家可先执行行动、…\": 3-0 ✓",
+    "\"该作提供多档难度设置，并允许玩家无条件跳过任意关卡且仍获得技能点和剧情推进，同时以可选目标满足高难度…\": 3-0 ✓",
+    "\"Unicorn Overlord 的 1.04 补丁专门改进了战斗画面与编队界面（Unit Form…\": 3-0 ✓",
+    "\"Tactics Ogre: Reborn 的 Chariot Tarot 系统允许玩家在战斗中回退回…\": 3-0 ✓",
+    "\"Unicorn Overlord 允许随时暂停实时战场来下达指令，评测认为这一设计消除了传统 RTS…\": 3-0 ✓",
+    "\"Unicorn Overlord 提供自动优化编队/装备的系统（auto-optimize），让玩家…\": 3-0 ✓",
+    "\"游戏提供名为 foresight（预见）的能力，可在确认前预览那些要到回合结束后才生效的延迟效果（如…\": 3-0 ✓",
+    "\"Triangle Strategy 采用反挫败设计：玩家撤退或战败后仍保留该场战斗中获得的全部经验值…\": 3-0 ✓",
+    "\"Triangle Strategy 的战斗 UI 用'威胁格'(threat squares)和红色…\": 3-0 ✓",
+    "\"游戏允许在任意时刻切换难度，并提供 Quietus 系统——一组可在己方任意回合使用的有限'王牌'能…\": 3-0 ✓",
+    "Verify done: 25 claims → 24 confirmed, 1 killed"
+  ],
+  "result": {
+    "question": "研究课题：2023-2026 年火焰纹章系列及一线战棋/SLG 游戏的 UI/UX 设计演进，以及对一款 2D 像素风火纹式独立游戏的可借鉴点。具体要求：1) 最新火焰纹章作品（Engage 及之后的新作/重制动向）的战斗 UI、信息呈现、QoL 功能（如行动预览、危险范围、回退机制）；2) 近两年高口碑战棋/SLG（如 Unicorn Overlord、Triangle Strategy、Tactics Ogre Reborn、The Last Spell、Tactical Breach Wizards、Metaphor: ReFantazio 的 UI 风格影响等）在 UI/UX 上被公认的创新点；3) 行业趋势（快进/自动战斗、伤害预览确定性、可达性选项、回合回退 undo、风格化菜单动效）；4) 输出对一款 pygame 2D 火纹式游戏（720×580、鼠标操作、已有威胁范围/战斗预测/对话立绘系统）切实可落地的借鉴清单，按实现成本×体验收益排序。中文报告。",
+    "summary": "2023-2026 年一线战棋的 UI/UX 演进围绕四条主线：(1) 回合回退（undo）已成第一方标配——火焰纹章 Engage 的\"龙之时水晶\"以行动历史时间轴 UI 实现任意节点回退，并按难度分层（普通无限、困难/疯狂每图 10 次），Tactics Ogre Reborn 的 Chariot Tarot 与 Tactical Breach Wizards 的回合内无限 rewind 印证了这一趋势的跨厂商共识；(2) 玩家回合结果确定性/可预览化成为公认设计方向，TBW 从立项起就把\"所有意外只发生在敌方回合\"写进核心设计，并用 Foresight 把确定性预览扩展到跨回合延迟事件；(3) 可达性分层（随时切换难度、无条件跳关仍保留成长与剧情、败北保留经验等反挫败设计）在 Triangle Strategy、TBW、Unicorn Overlord 中被评测点名为标杆；(4) 风格化 UI 作为系列视觉身份（Metaphor: ReFantazio 的 GDC 分享）与发售后持续迭代战斗信息呈现（Unicorn Overlord 1.04）成为行业自觉。对用户的 pygame 火纹式游戏（芬河战记，720×580、鼠标操作、已有威胁范围/战斗预测/立绘对话/章节重试），按成本×收益排序的最高优先借鉴是：状态快照式回合回退（按难度分层次数）、伤害预览与结算同源的确定性保证、Engage 式头顶机制触发图标、敌方回合快进，其次是双色危险范围语义、可选挑战目标与跳关可达性，最后才是 Metaphor 式风格化菜单动效。值得注意的是 Engage 之后的 Fire Emblem Shadows（2025 手游）转向自动战斗社交推理（Metacritic 37 分），参考价值极低，第一方战棋 UI 标杆在 2026 年 9 月《Fortune's Weave》发售前仍以 Engage 为准。",
+    "findings": [
+      {
+        "claim": "【火纹 Engage：回退机制全貌】Engage 的'龙之时水晶'(Draconic Time Crystal) 是系列回退 QoL 的延续（Echoes 米拉之齿轮 → 风花雪月神之脉动，2017 年起每作必有）：第 4 章 'A Land in Bloom' 解锁，玩家回合任意时刻按 '+' 键调出；UI 为'行动历史时间轴'——按时间顺序列出玩家与敌方阶段的全部行动节点，方向键选择回退点并确认（滚动时附地图预览）；次数按难度分层：普通无限，困难/疯狂每场战斗 10 次充能。这是'可达性/难度分层 undo'的第一方标杆实现。",
+        "confidence": "high",
+        "sources": [
+          "https://game8.co/games/Fire-Emblem-Engage/archives/401492",
+          "https://gameranx.com/features/id/431468/article/fire-emblem-engage-what-is-the-draconic-time-crystal-tips-tricks/",
+          "https://www.thesixthaxis.com/2023/01/17/fire-emblem-engage-review/",
+          "https://fireemblemwiki.org/wiki/Turn_rewind",
+          "https://fireemblemwiki.org/wiki/Draconic_Time_Crystal"
+        ],
+        "evidence": "合并 8 条独立确认的声明（claims 4/6/7/8/9/10/11/12，均 3-0 通过）。Game8: 'a list of actions (both in the player's and the enemy's phases) will appear in chronological order'；'On Normal Difficulty, there's no limit... on Hard and Maddening... maximum of 10 charges'。Gameranx: 'You can access the Crystal by pressing the + button'。Fire Emblem Wiki 交叉确认功能等同于 Mila's Turnwheel/Divine Pulse、第 3 章后获得第 4 章首次可用、普通无限/高难每图 10 次。验证者另确认：濒临 Game Over 时自动触发、第 11 章剧情中暂时被夺走、少数关卡禁用。",
+        "vote": "3-0 ×8（合并）"
+      },
+      {
+        "claim": "【火纹 Engage：战斗信息呈现】Engage 用角色头顶小图标提示破防(Break)等机制即将触发，使战术决策更清晰（地图上还有黄色!=必杀武器、紫色!=武器克制威胁等单位头顶符号体系）；同时其高饱和、高辨识度的角色设计被 RPGamer 评为'与 UI 协同工作，让战场一切信息易于追踪'——即单位视觉辨识度本身是信息可读性工具。",
+        "confidence": "medium",
+        "sources": [
+          "https://www.thesixthaxis.com/2023/01/17/fire-emblem-engage-review/",
+          "https://rpgamer.com/review/fire-emblem-engage-review/"
+        ],
+        "evidence": "合并 claims 3（2-1 通过）与 5（3-0 通过）。TheSixthAxis: 'small icons above a character's head, making tactical decisions that much clearer'——验证者确认引文上下文指 Break 机制；'连锁攻击'部分为轻微过度归因（Engage 在战斗预测/友军高亮处另行提示连锁），故引用时应以 Break 提示为准。RPGamer（经 Wayback 逐字核实）: 'make the characters and visuals stand out, working well with the UI to make everything easy to keep track of'。SegmentNext 的战斗符号指南佐证头顶图标体系。因 claim 3 为 2-1 分歧票，整体定为 medium。",
+        "vote": "2-1 + 3-0"
+      },
+      {
+        "claim": "【Engage 之后的系列动向】Fire Emblem Shadows（2025-09-25 上线的 Android/iOS 手游）放弃系列战棋玩法，改为带社交推理的自动战斗（角色自动移动，玩家只控制魔法/治疗时机），Metacritic 37 分，对火纹式战棋 UI/QoL 研究参考价值极低。下一部正统战棋《Fire Emblem: Fortune's Weave》（系列第 18 部正传，Switch 2）已确认 2026-09-17 发售但尚未发售——因此截至研究时点，第一方战棋 UI 标杆仍是 Engage (2023)。",
+        "confidence": "high",
+        "sources": [
+          "https://en.wikipedia.org/wiki/Fire_Emblem_Shadows",
+          "https://www.nintendo.co.jp/corporate/release/en/2025/250925.html"
+        ],
+        "evidence": "Claim 13，3-0 通过。Wikipedia: 'Combat is automatic, with characters moving on their own; players can control when they use magic and healing abilities'；任天堂官方新闻稿（一手来源）确认上线日期与'role-playing and social deduction'定位。验证者特别注明：Fortune's Weave 于 2026-06-09 Direct 确认 2026-09-17 发售，报告应将其列为'即将到来的继任者'而非暗示 Shadows 是 Engage 后唯一动向。",
+        "vote": "3-0"
+      },
+      {
+        "claim": "【Tactical Breach Wizards：确定性 + 无限回退的源头设计】该作从 2018 年立项 pitch 起就把'提交回合前无限次回放/修改指令'定为核心机制（'you can keep rewinding and changing your orders until you're happy with the result'），并刻意将玩家回合做成完全确定性——零随机机制，所有不确定性只发生在敌方回合（'all of the surprise will happen on their turn'）。这是'伤害预览确定性'与'回合 undo'两大行业趋势的最纯粹样本，且为设计者本人的一手设计陈述。",
+        "confidence": "high",
+        "sources": [
+          "https://www.pentadact.com/2018-02-02-pitch-tactical-breach-wizards/"
+        ],
+        "evidence": "合并 claims 1、2（均 3-0，一手来源逐字核实）。Tom Francis 的原始 pitch 帖即游戏公告，2024 年 8 月成品保留了 pre-commit 无限回退与零随机设计，获多篇独立评测（Thinky Games、Turn Based Lovers、Briukhanov 设计分析）佐证。注意一条被否决的相关声明（0-3）：pitch 中设想的'所有指令同时执行'（Frozen Synapse 式）在成品中改为顺序执行+逐步预览，引用时不可描述为同时执行。",
+        "vote": "3-0 ×2"
+      },
+      {
+        "claim": "【Tactical Breach Wizards：成品的 undo/预览 UX 被公认为标杆】成品（2024-08）的回合内 rewind 被 Thinky Games 评为'无障碍解谜设计的标杆'（先执行、看结果、不满意即撤销，直到确认结束回合才锁定）；Foresight/Foresee 机制可在确认前预览要到回合结束后才生效的延迟效果（如定时炸弹爆炸），把确定性预览从即时伤害扩展到跨回合事件。多个独立评测称 rewind 是该作单项最佳功能。",
+        "confidence": "high",
+        "sources": [
+          "https://thinkygames.com/reviews/tactical-breach-wizards-review/"
+        ],
+        "evidence": "合并 claims 14、15（均 3-0）。Thinky Games: 'rewind feature is a standout in accessible puzzle design'；'Using a skill called foresight, you can also see how actions play out that only take effect after your turn is over, such as a time bomb exploding'。Shacknews、Hey Poor Player、Medium 设计分析等多源独立佐证。细微限定：rewind 仅限回合内（非跨回合）；Foresee 实际是 UI 层的预览阶段/按钮（叙事上包装为角色 Zan 的预知能力）；个别陷阱可在回合中途触发于预览之外，但 rewind 仍可覆盖。",
+        "vote": "3-0 ×2"
+      },
+      {
+        "claim": "【Tactical Breach Wizards：可达性分层】提供多档难度（Easy/Hard 等）、允许无条件跳过任意关卡且仍获得技能点与剧情推进（'no questions asked'），同时用每关可选目标（Confidence 系统：限回合通关等）满足高难度玩家——'宽进严出'的可达性设计实例：底线零门槛，上限靠自选挑战。",
+        "confidence": "high",
+        "sources": [
+          "https://thinkygames.com/reviews/tactical-breach-wizards-review/"
+        ],
+        "evidence": "Claim 16，3-0。Thinky Games: 'the option to simply skip a level and get back to it later, no questions asked. You still get the skill points... and you still get to see how the story goes'。Steam 社区确认'可以跳过字面意义上的每一关'；可选目标部分由同篇评测另一原句及多个第三方攻略站独立佐证。验证者排查了最可疑的反证帖（抱怨的是剧情连线小游戏而非战斗关，且 2025-01 更新后也可跳过）。",
+        "vote": "3-0"
+      },
+      {
+        "claim": "【Tactics Ogre: Reborn：大型商业战棋的回退实现】Chariot Tarot 系统允许战斗中回退，初期上限 10 个'回合'（实为按单位 WT 行动计的单位行动数），随进程提升（最终至 50，与 PSP 原版行动日志一致）——代表大型商业重制在'回合回退'QoL 上的渐进解锁式设计。",
+        "confidence": "high",
+        "sources": [
+          "https://www.rpgsite.net/news/13383-tactics-ogre-reborn-details-skills-battiefield-elements-unit-recruitment-the-wheel-of-fortune-the-chariot-tarot-rewind-feature-and-the-world-tarot-route-change-mechanic"
+        ],
+        "evidence": "Claim 17，3-0。RPGSite（转译 SE 官方资料）: 'At the start of the game, people can only rewind up to 10 turns back, though this will increase further into the game'；Gematsu 同源独立报道、PSNProfiles 奖杯指南确认成品行为（初始约 10，最高 50）。重要术语脚注：此处 'turns' 指单个单位的行动节点而非完整玩家回合。",
+        "vote": "3-0"
+      },
+      {
+        "claim": "【Unicorn Overlord：发售后 UI 迭代 + 时间尊重型 QoL】(a) 1.04 补丁（发售约 6 周后）官方更新日志专门列出'改进战斗画面与编队界面(Unit Formation screen)呈现的信息'，并含排序/筛选与单位选择 QoL——高口碑战棋发售后仍持续迭代信息呈现；(b) 自动优化编队/装备（Optimize）让玩家可跳过细节管理，评测称'系统设计尊重你的时间'；(c) 实时战场可随时暂停下令（暂停时计时器停止），评测认为消除了传统 RTS 的操作压力，是降低实时玩法门槛的 UX 设计。",
+        "confidence": "medium",
+        "sources": [
+          "https://noisypixel.net/unicorn-overlord-patch-more-settings-replayable-stages-improved-battle-ui/",
+          "https://atlus.com/unicorn-overlord-v1-04-patch-notes/",
+          "https://www.rpgfan.com/review/unicorn-overlord/"
+        ],
+        "evidence": "合并 claims 18、19、20（均 3-0）。Atlus 官方补丁说明（一手）逐字含 'Made improvements to the information shown on battle screens, Unit Formation screen, etc.'；RPGFan: 'the system designs respect your time by allowing you to ignore the details and automatically optimize your army'；'Because you can pause the action, commanding units is never stressful or hectic'。限定：Optimize 会重置自定义战术且选择并非完美（便利功能而非完美方案）；关卡计时器本身仍可能给部分玩家压力。(b)(c) 为评测观点归因，故整体 medium。",
+        "vote": "3-0 ×3"
+      },
+      {
+        "claim": "【Triangle Strategy：危险范围语义化 + 反挫败设计】(a) 战斗 UI 用'威胁格'(threat squares)与红色箭头标示单位安全/危险状态（紫/红=危险格 vs 蓝=安全格，正式版较 demo 提高了对比度），技能说明、炸弹倒计时等战术信息少量按键即可查看——评测点名的 QoL 信息呈现；(b) 撤退或战败保留全部已获经验与 Kudos（元进度资源，可兑换升职勋章等），反复挑战同关也持续成长（拾取物品不保留）；(c) 难度可在任意时刻切换；Quietus 系统提供有限次数的'王牌'能力（紧急治疗、把队友行动顺位提前、移动单位）作为战局逆转保险。",
+        "confidence": "high",
+        "sources": [
+          "https://www.destructoid.com/reviews/review-triangle-strategy/",
+          "https://www.nintendolife.com/guides/triangle-strategy-tips-and-battle-tactics-walkthrough-tactical-points-phases-kudos-quietuses-guide"
+        ],
+        "evidence": "合并 claims 21、22、23（均 3-0，经 Wayback 逐字核实）。Destructoid: 'Threat squares and red arrows indicate where a unit is safe or in danger. Tons of info is available in a few button presses'；'If the player retreats from a battle or loses, they get to keep any experience and Kudos'；'Difficulty can be swapped at any point. And Quietuses... act as limited trump cards'。Nintendo Life、RPGFan、Game8 等多源独立交叉佐证机制细节（含 Quietus 的 Restore/In Tandem 等具体技能与 Kudos 兑换体系）。",
+        "vote": "3-0 ×3"
+      },
+      {
+        "claim": "【Metaphor: ReFantazio：风格化 UI 作为系列视觉身份】Atlus UI 主设计师 Koji Ise 在 GDC 2025 分享中确认：团队有意识地将 Metaphor 的 UI 与 Persona 系列差异化——曾否决五版被批评像'Persona 仿品'的 UI 原型，刻意回避通用品类 UI，最终建立只属于 Metaphor 世界观的'Hyper-Stylish UI'（如维特鲁威人式技能菜单）。启示：风格化菜单动效的价值在于建立独有视觉身份，而非堆砌华丽效果。",
+        "confidence": "high",
+        "sources": [
+          "https://gdcvault.com/play/1035332/From-Persona-to-Metaphor-ReFantazio"
+        ],
+        "evidence": "Claim 0，3-0，一手开发者复盘。GDC Vault 会议标题 'From Persona to Metaphor: ReFantazio: Creating a Visual Identity for a New Series'，简介逐字含 'explain how the team tried to differentiate Metaphor from Persona'。验证者确认演讲内容包含五版被否原型与'Hyper-Stylish UI'概念的具体细节。",
+        "vote": "3-0"
+      },
+      {
+        "claim": "【行业趋势综合】2023-2026 年一线战棋 UI/UX 形成四点跨厂商共识：(1) 回合回退已从'特色'变'标配'，且普遍采用渐进解锁（TO Reborn 10→50）或难度分层（Engage 普通无限/高难 10 次）来平衡挑战性；(2) 玩家行动结果确定性可预览成为信任基础——从火纹的战斗预测到 TBW 的零随机+跨回合 Foresight 是同一光谱的两端；(3) 可达性做成'分层菜单'：随时换难度（TS）、跳关保进度（TBW）、败北保经验（TS）、自动优化省心（UO），高难需求用可选目标/充能上限满足；(4) UI 既是信息工具（Engage 头顶图标、TS 威胁格、UO 补丁迭代）也是品牌身份（Metaphor），二者并重。",
+        "confidence": "high",
+        "sources": [
+          "https://game8.co/games/Fire-Emblem-Engage/archives/401492",
+          "https://www.pentadact.com/2018-02-02-pitch-tactical-breach-wizards/",
+          "https://thinkygames.com/reviews/tactical-breach-wizards-review/",
+          "https://www.destructoid.com/reviews/review-triangle-strategy/",
+          "https://www.rpgfan.com/review/unicorn-overlord/",
+          "https://gdcvault.com/play/1035332/From-Persona-to-Metaphor-ReFantazio"
+        ],
+        "evidence": "由上述全部 24 条确认声明（22 条 3-0、1 条 2-1）归纳，每条趋势均有至少 2-3 款不同厂商作品的独立证据支撑。注意：研究问题中点名的'快进/自动战斗'子题没有直接存活的声明（FE Shadows 的自动战斗是反例而非趋势佐证，UO 是实时暂停而非回合快进），该趋势在本批证据中覆盖薄弱。",
+        "vote": "综合（22×3-0 + 1×2-1）"
+      },
+      {
+        "claim": "【可落地借鉴清单：按成本×收益排序】针对芬河战记（pygame，720×580，鼠标操作，已有：D 键威胁范围叠加/点击单敌威胁、战斗预测、立绘对话、章节自动存档+挂起存档、败北 R 重试、Tab 循环选单位、休闲模式）：\n1. 回合回退（成本低-中/收益极高）：每次行动结算后将战场状态深拷贝入栈（已有挂起存档的序列化逻辑可直接复用），地图菜单加'时之水晶'项，弹出按时间序的行动节点列表（'罗伊移动并攻击山贼'…），点击回退；休闲模式无限次、经典模式每章 10 次（Engage 分层标杆）。小地图+少单位下内存可忽略。\n2. 预览确定性同源化（成本低/收益高）：保证战斗预测面板数值与结算逻辑共用同一函数（TBW 原则：玩家回合无意外）；若保留命中随机，预览需显式展示命中%与确切伤害值，绝不出现预览外结果。\n3. 头顶机制图标（成本低/收益高）：已有武器克制三角，选中单位后给'被你克制'的敌人头顶画绿色▲、'克制你'的画红色!（Engage 式），比悬停信息栏快一个数量级。\n4. 敌方回合快进（成本低/收益高）：按住右键或空格 2-4 倍速播放敌方行动与增援（十章战役的重复体验痛点；行业普遍但本批证据未直接覆盖，属常识性补充）。\n5. 危险范围双色语义（成本低/收益中）：现有 D 键叠加改为两层——'本回合即可打到你'用红、'移动+攻击总范围'用橙/紫（Triangle Strategy 威胁格语义）。\n6. 反挫败强化（成本低/收益中）：败北重试时保留本章已获经验的 50-100%（TS 式），降低高难挫败。\n7. 可选挑战目标（成本中/收益中）：每章 1-2 个可选目标（X 回合内通关/无人重伤），接入已有战绩记忆系统展示（TBW Confidence 式）。\n8. 跳关可达性（成本中/收益中）：连续败北 2 次后提供'跳过本章'，保留剧情播放与平均成长（TBW 'no questions asked'原则）。\n9. 风格化菜单动效（成本高/收益偏品牌）：为标题/图鉴/对话框建立统一像素主题动效（火焰粒子、卷轴展开），Metaphor 启示是'独有身份'优先于'华丽'——排最后，现有 AI 立绘已承担部分身份职能。",
+        "confidence": "medium",
+        "sources": [
+          "https://game8.co/games/Fire-Emblem-Engage/archives/401492",
+          "https://www.pentadact.com/2018-02-02-pitch-tactical-breach-wizards/",
+          "https://thinkygames.com/reviews/tactical-breach-wizards-review/",
+          "https://www.destructoid.com/reviews/review-triangle-strategy/",
+          "https://gdcvault.com/play/1035332/From-Persona-to-Metaphor-ReFantazio"
+        ],
+        "evidence": "派生性建议：每条均锚定至少一条 3-0 确认声明（条目 1←claims 6/7/8、条目 2←claims 1/2/15、条目 3←claims 3/5、条目 5←claim 21、条目 6←claim 22、条目 7-8←claim 16、条目 9←claim 0），并结合对项目 README（/Users/wangxingyu/claude/火焰纹章/README.md）现有功能（威胁范围、战斗预测、挂起存档序列化、战绩记忆、休闲模式）的实地核对来评估实现成本。条目 4（快进）无直接存活声明支撑，为常识性补充。成本评估基于项目现状推断而非实测，故整体 medium。",
+        "vote": "派生（基于已确认声明 + 项目实地核对）"
+      }
+    ],
+    "caveats": "1) 来源构成：仅 3 条声明有一手来源（TBW 设计者 pitch、GDC Vault 会议、Atlus 官方补丁说明/任天堂新闻稿），其余为评测/攻略站二手来源——但多数经多源独立交叉验证，且游戏机制类事实可直接验证，风险有限。2) 分歧票：claim 3（Engage 头顶图标）为 2-1，验证者指出'连锁攻击'部分系轻微过度归因，引文实际仅直接支持 Break 提示，引用时应以 Break 为准。3) 被否决声明：'TBW 玩家逐个下令最终所有指令同时执行'（0-3 被驳回）——成品是顺序执行+逐步预览，报告中已规避该表述。4) 术语陷阱：TO Reborn 的'回退 10 回合'实指 10 个单位行动节点（WT 序）而非完整玩家回合。5) 时效性：《Fortune's Weave》2026-09-17 发售（已确认）但其 UI/QoL 细节未公开，发售后可能取代 Engage 成为新标杆，本报告结论的'第一方标杆'判断有约 3 个月有效期。6) 覆盖缺口：研究问题点名的 The Last Spell 没有任何存活声明；'快进/自动战斗'趋势子题亦无直接证据（借鉴清单条目 4 为常识性补充而非验证结论）。7) 借鉴清单的成本评估基于 README 与代码结构推断，未经实现验证；UO 的 Optimize 有'重置自定义战术'的已知缺陷，借鉴自动优化类功能时需注意保留玩家自定义。",
+    "openQuestions": [
+      "《Fire Emblem: Fortune's Weave》(2026-09-17, Switch 2) 的战斗 UI 与 QoL 设计细节：是否延续龙之时水晶式行动历史回退？是否针对 Switch 2 新输入方式（如鼠标模式）调整交互——这对鼠标操作的独立火纹游戏可能是最直接的参考。",
+      "Engage 式'行动历史时间轴'回退在纯鼠标驱动 UI 下的最佳交互形态（可点击列表 vs 可拖动时间轴滑块 vs 地图上直接点选历史位置）缺乏直接案例研究——已确认案例均为手柄方向键操作。",
+      "The Last Spell 等 roguelite 战棋（以及 Metaphor 战斗系统本身）的 UI 创新点未被本轮证据覆盖：其夜战波次预览、伤害数字堆叠呈现等是否有可借鉴的密集信息呈现方案？",
+      "传统回合制战棋中'敌方回合快进/动画跳过'的行业实现规范（倍速档位、按住快进 vs 设置常开、增援动画是否可跳）——本轮存活声明完全未覆盖，需补充定向检索。"
+    ],
+    "refuted": [
+      {
+        "claim": "玩家逐个给单位下令并立即看到执行结果，再回退给下一个单位下令，最终所有指令同时执行——一种把“行动预览”与“回退”融为一体的指挥流程。",
+        "vote": "0-3",
+        "source": "https://www.pentadact.com/2018-02-02-pitch-tactical-breach-wizards/"
+      }
+    ],
+    "sources": [
+      {
+        "url": "https://www.thesixthaxis.com/2023/01/17/fire-emblem-engage-review/",
+        "quality": "secondary",
+        "angle": "第一方标杆：火焰纹章最新作 UI/QoL",
+        "claimCount": 5
+      },
+      {
+        "url": "https://rpgamer.com/review/fire-emblem-engage-review/",
+        "quality": "secondary",
+        "angle": "第一方标杆：火焰纹章最新作 UI/QoL",
+        "claimCount": 5
+      },
+      {
+        "url": "https://game8.co/games/Fire-Emblem-Engage/archives/401492",
+        "quality": "secondary",
+        "angle": "第一方标杆：火焰纹章最新作 UI/QoL",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.qualbert.com/reviews/fire-emblem-engage-review/",
+        "quality": "blog",
+        "angle": "第一方标杆：火焰纹章最新作 UI/QoL",
+        "claimCount": 5
+      },
+      {
+        "url": "https://gameranx.com/features/id/431468/article/fire-emblem-engage-what-is-the-draconic-time-crystal-tips-tricks/",
+        "quality": "secondary",
+        "angle": "第一方标杆：火焰纹章最新作 UI/QoL",
+        "claimCount": 5
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Fire_Emblem_Shadows",
+        "quality": "secondary",
+        "angle": "第一方标杆：火焰纹章最新作 UI/QoL",
+        "claimCount": 4
+      },
+      {
+        "url": "https://medium.com/@bryukh/rewind-and-redo-how-tactical-breach-wizards-brings-puzzle-mechanics-to-tactical-games-364665cce4c1",
+        "quality": "blog",
+        "angle": "同类竞品：高口碑战棋的公认 UI 创新",
+        "claimCount": 4
+      },
+      {
+        "url": "https://thinkygames.com/reviews/tactical-breach-wizards-review/",
+        "quality": "secondary",
+        "angle": "同类竞品：高口碑战棋的公认 UI 创新",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.rpgsite.net/news/13383-tactics-ogre-reborn-details-skills-battiefield-elements-unit-recruitment-the-wheel-of-fortune-the-chariot-tarot-rewind-feature-and-the-world-tarot-route-change-mechanic",
+        "quality": "secondary",
+        "angle": "同类竞品：高口碑战棋的公认 UI 创新",
+        "claimCount": 4
+      },
+      {
+        "url": "https://noisypixel.net/unicorn-overlord-patch-more-settings-replayable-stages-improved-battle-ui/",
+        "quality": "secondary",
+        "angle": "同类竞品：高口碑战棋的公认 UI 创新",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.rpgfan.com/review/unicorn-overlord/",
+        "quality": "secondary",
+        "angle": "同类竞品：高口碑战棋的公认 UI 创新",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.destructoid.com/reviews/review-triangle-strategy/",
+        "quality": "secondary",
+        "angle": "同类竞品：高口碑战棋的公认 UI 创新",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.gameuidatabase.com/",
+        "quality": "secondary",
+        "angle": "行业趋势与设计方法论",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.pcgamer.com/tactical-breach-wizards-interview/",
+        "quality": "secondary",
+        "angle": "行业趋势与设计方法论",
+        "claimCount": 5
+      },
+      {
+        "url": "https://gdcvault.com/play/1035332/From-Persona-to-Metaphor-ReFantazio",
+        "quality": "primary",
+        "angle": "风格化菜单动效美学",
+        "claimCount": 4
+      },
+      {
+        "url": "https://noisypixel.net/persona-metaphor-ui-design-evolution/",
+        "quality": "secondary",
+        "angle": "风格化菜单动效美学",
+        "claimCount": 5
+      },
+      {
+        "url": "https://ridwankhan.com/the-ui-and-ux-of-persona-5-183180eb7cce",
+        "quality": "blog",
+        "angle": "风格化菜单动效美学",
+        "claimCount": 5
+      },
+      {
+        "url": "https://jiaxinwen.wordpress.com/2017/04/27/the-ui-design-of-persona-5/",
+        "quality": "blog",
+        "angle": "风格化菜单动效美学",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.gdcvault.com/play/1025772/-Into-the-Breach-Design",
+        "quality": "primary",
+        "angle": "落地实践：像素独立战棋 UI 实现",
+        "claimCount": 4
+      },
+      {
+        "url": "https://www.gdquest.com/tutorial/godot/2d/tactical-rpg-movement/",
+        "quality": "blog",
+        "angle": "落地实践：像素独立战棋 UI 实现",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.pentadact.com/2018-02-02-pitch-tactical-breach-wizards/",
+        "quality": "primary",
+        "angle": "落地实践：像素独立战棋 UI 实现",
+        "claimCount": 5
+      },
+      {
+        "url": "https://smallgraygames.itch.io/south-of-the-march/devlog/781505/devlog-10-redesigning-combat-ui",
+        "quality": "blog",
+        "angle": "落地实践：像素独立战棋 UI 实现",
+        "claimCount": 5
+      }
+    ],
+    "stats": {
+      "angles": 5,
+      "sourcesFetched": 22,
+      "claimsExtracted": 105,
+      "claimsVerified": 25,
+      "confirmed": 24,
+      "killed": 1,
+      "afterSynthesis": 12,
+      "urlDupes": 1,
+      "budgetDropped": 7,
+      "agentCalls": 104
+    }
+  }
+}

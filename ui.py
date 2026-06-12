@@ -121,8 +121,18 @@ def draw_info(surf, unit, terrain_ch):
 
 def draw_help(surf):
     y0 = GRID_H * CELL
-    _text(surf, '左键 选择  右键 取消  Tab 下一单位  D 危险范围  I 详情  E 结束回合', 13,
-          (SCREEN_W - 552, y0 + 84), (110, 110, 125))
+    _text(surf, '左键选择 右键取消 Tab下一单位 D危险范围 Z回溯 空格快进 I详情 E结束回合', 13,
+          (SCREEN_W - 580, y0 + 84), (110, 110, 125))
+
+
+def draw_danger_mark(surf, px, py):
+    """受威胁我方单位头顶红色感叹号。"""
+    pygame.draw.circle(surf, (200, 50, 50), (px + 8, py + 8), 7)
+    _text(surf, '!', 14, (px + 6, py + 1), (255, 255, 255))
+
+
+def draw_ff_indicator(surf):
+    _text(surf, '▶▶ 快进', 16, (SCREEN_W - 86, 8), COL_GOLD)
 
 
 # --- 行动菜单 ---
@@ -460,12 +470,13 @@ def draw_banner(surf, text, t, color):
     surf.blit(t_surf, t_surf.get_rect(center=(SCREEN_W // 2, y + h // 2)))
 
 
-def draw_defeat(surf):
+def draw_defeat(surf, can_undo=False):
     veil = pygame.Surface((SCREEN_W, GRID_H * CELL), pygame.SRCALPHA)
     veil.fill((10, 10, 16, 170))
     surf.blit(veil, (0, 0))
     _text(surf, '败 北 …', 52, (SCREEN_W // 2, GRID_H * CELL // 2 - 20), (180, 180, 190), center=True)
-    _text(surf, '按 R 重试本章（保留升级）', 18, (SCREEN_W // 2, GRID_H * CELL // 2 + 40), COL_DIM, center=True)
+    tip = 'Z 时光回溯（撤销致命失误） · R 重试本章' if can_undo else '按 R 重试本章（保留升级）'
+    _text(surf, tip, 18, (SCREEN_W // 2, GRID_H * CELL // 2 + 40), COL_DIM, center=True)
 
 
 # --- 浮动文字（伤害/回血/MISS） ---
