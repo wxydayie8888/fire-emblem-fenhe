@@ -10,7 +10,7 @@ from pathlib import Path
 from settings import CHAPTERS, CLASSES, PLAYER_ROSTER
 from unit import SAVE_FIELDS
 
-SAVE_VERSION = 2      # v2: 平衡性大调整，旧档数值不再适用
+SAVE_VERSION = 3      # v3: 十章战役（章节数与队伍规模变更）
 SAVE_PATH = Path(__file__).resolve().parent / 'save.json'
 
 # 合法角色名 = 基础队伍 + 各章 join

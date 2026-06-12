@@ -39,7 +39,7 @@ def test_boss_quotes_cover_all_chapters():
 
 
 def test_bios_cover_codex():
-    assert len(story.CODEX_ORDER) == 8
+    assert len(story.CODEX_ORDER) == 18
     for name in story.CODEX_ORDER:
         b = story.BIOS[name]
         assert b['cls'] in CLASSES

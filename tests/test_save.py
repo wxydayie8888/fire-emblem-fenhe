@@ -41,7 +41,7 @@ def test_load_wrong_version_returns_none(tmp_path):
 def test_load_invalid_rejected(tmp_path):
     p = tmp_path / 'save.json'
     cases = [
-        {'version': save.SAVE_VERSION, 'chapter_idx': 9, 'roster': roster_dicts()},   # 章节越界
+        {'version': save.SAVE_VERSION, 'chapter_idx': 99, 'roster': roster_dicts()},  # 章节越界
         {'version': save.SAVE_VERSION, 'chapter_idx': 0, 'roster': []},               # 空队伍
         {'version': save.SAVE_VERSION, 'chapter_idx': 0,
          'roster': roster_dicts()[1:]},                                               # 首位不是领主

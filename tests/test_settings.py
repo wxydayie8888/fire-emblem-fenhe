@@ -2,11 +2,15 @@ import settings
 from settings import CHAPTERS, CLASSES, PLAYER_ROSTER, TERRAIN
 
 
-def test_three_chapters():
-    assert len(CHAPTERS) == 3
+def test_ten_chapters():
+    assert len(CHAPTERS) == 10
     for ch in CHAPTERS:
-        assert ch['win'] in ('rout', 'boss')
+        assert ch['win'] in ('rout', 'boss', 'seize', 'defend')
         assert ch['title'] and ch['story'] and ch['objective']
+        if ch['win'] == 'seize':
+            assert 'goal' in ch
+        if ch['win'] == 'defend':
+            assert ch['hold_turns'] >= 3
 
 
 def test_chapter_maps_valid():
@@ -16,11 +20,15 @@ def test_chapter_maps_valid():
         assert all(len(r) == settings.GRID_W == 15 for r in rows)
         for r in rows:
             for c in r:
-                assert c in TERRAIN
+                assert c in TERRAIN, (ch['title'], c)
 
 
 def _passable(rows, pos, cls):
     x, y = pos
+    if not (0 <= x < settings.GRID_W and 0 <= y < settings.GRID_H):
+        return False
+    if CLASSES[cls].get('fly'):
+        return True
     t = TERRAIN[rows[y][x]]
     if t['cost'] is None:
         return False
@@ -33,8 +41,9 @@ def test_roster_grows_with_joins():
     # 第 i 章的出生点数量 = 基础 4 人 + 之前所有章节加入的同伴
     expect = len(PLAYER_ROSTER)
     for ch in CHAPTERS:
-        assert len(ch['players']) == expect
+        assert len(ch['players']) == expect, ch['title']
         expect += len(ch['join'])
+    assert expect == 8                      # 最终八人队伍
 
 
 def test_all_positions_passable_and_distinct():
@@ -53,10 +62,18 @@ def test_all_positions_passable_and_distinct():
             taken.add(j['pos'])
         for e in ch['enemies']:
             assert e['cls'] in CLASSES
-            assert _passable(rows, e['pos'], e['cls'])
-            assert e['pos'] not in taken
+            assert _passable(rows, e['pos'], e['cls']), (ch['title'], e['name'])
+            assert e['pos'] not in taken, (ch['title'], e['pos'])
             taken.add(e['pos'])
             assert e.get('ai', 'aggro') in ('aggro', 'guard')
+        for turn, specs in ch.get('reinforce', {}).items():
+            assert isinstance(turn, int) and turn >= 2
+            for spec in specs:
+                assert spec['cls'] in CLASSES
+                assert _passable(rows, spec['pos'], spec['cls']), (ch['title'], spec)
+        if ch['win'] == 'seize':
+            gx, gy = ch['goal']
+            assert TERRAIN[rows[gy][gx]]['cost'] is not None
         roster += [j['cls'] for j in ch['join']]
 
 
@@ -66,6 +83,13 @@ def test_boss_chapters_have_boss():
         assert bosses, ch['title']          # 每章都有 Boss
         if ch['win'] == 'boss':
             assert len(bosses) == 1
+
+
+def test_cleric_and_flier_classes():
+    assert CLASSES['cleric']['weapon'] == 'staff'
+    assert CLASSES['pegasus'].get('fly') and CLASSES['wyvern'].get('fly')
+    assert settings.WEAPONS['staff'].get('heal')
+    assert settings.WEAPONS['breath']['range'] == (1, 2)
 
 
 def test_new_terrains():
