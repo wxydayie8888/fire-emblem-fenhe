@@ -23,6 +23,13 @@ python3 -m venv .venv
 .venv/bin/python main.py
 ```
 
+**打包独立 App**（macOS，免 Python 环境双击即玩）：
+
+```bash
+.venv/bin/pip install pyinstaller
+./tools/build_app.sh        # 产出 dist/芬河战记.app
+```
+
 ## 三幕十章战役
 
 | 章 | 标题 | 看点 | 胜利条件 |
@@ -46,9 +53,12 @@ python3 -m venv .venv
 
 ## 存档与剧情
 
-- **章节自动存档**：每章布阵与通关时自动写入 `save.json`，无需手动操作；
-  标题画面「继续游戏」一键回到进度（含队伍等级），通关后自动删档开启新周目
-- 存档损坏时「继续游戏」自动灰显，不会崩溃；战斗中途退出回到本章开局
+- **章节自动存档**：每章布阵与通关时自动写档；通关后自动删档开启新周目
+- **战斗中挂起存档**：点击空地 → 地图菜单 →「保存进度」，回合数、单位位置血量、
+  增援进度、Boss 叫阵状态全部精确保存；标题「继续游戏」直接回到战局
+- **战绩记忆**：通关周目数、累计击破、最佳通关回合永久记录，标题画面展示
+- 存档损坏时「继续游戏」自动灰显，不会崩溃
+- 存档位置：源码运行在项目目录；独立 App 在 `~/Library/Application Support/芬河战记/`
 - **剧情**：新游戏从世界观旁白开篇；每章战斗前后在战场上播放角色对话；
   首次攻击 Boss 触发叫阵对话；通关后有尾声旁白（ESC 可跳过任何剧情）
 - **人物图鉴**：标题菜单进入，收录我方八人与历章 Boss 共 18 人的生平、属性与成长倾向
@@ -59,6 +69,7 @@ python3 -m venv .venv
 |------|------|
 | 左键 | 选择单位 / 确认移动 / 选择目标 / 确认攻击 |
 | 左键点敌人（待机时） | 显示/隐藏该敌人的威胁范围 |
+| 左键点空地 | 地图菜单：**结束回合 / 保存进度**（战斗中随时存档） |
 | 右键 / ESC | 取消，逐级退回上一步；剧情中 ESC 整段跳过 |
 | Tab | 循环选择下一个未行动单位 |
 | D | 开关全体敌人危险范围叠加 |
@@ -101,7 +112,7 @@ python3 -m venv .venv
 ## 开发
 
 ```bash
-.venv/bin/python -m pytest tests/ -v     # 57 个纯逻辑单元测试
+.venv/bin/python -m pytest tests/ -v     # 66 个纯逻辑单元测试
 .venv/bin/python assets.py               # 生成精灵映射预览图
 .venv/bin/python sfx.py                  # 试听全部程序化音效
 .venv/bin/python tools/balance_sim.py 40 # 平衡性模拟（贪心bot打全战役统计胜率）
@@ -110,7 +121,7 @@ python3 -m venv .venv
 平衡基准（贪心 bot、不重试，40 局）逐章胜率：75/93/64/89/100/75/100/93/86/50。
 终章对 bot 最严酷属有意为之；真人玩家有战术与败北重试，实际体验更宽松。改数值后请重跑模拟。
 
-代码结构：`settings/unit/combat/grid/ai/save/story` 为零 pygame 依赖的纯逻辑层
+代码结构：`settings/unit/combat/grid/ai/save/story/records/paths` 为零 pygame 依赖的纯逻辑层
 （pytest 覆盖），`assets/ui/game/sfx/main` 为渲染交互层。十章地图与全部数值集中在
 `settings.py`，剧情文案与角色生平集中在 `story.py`，改平衡、加关卡、改台词只需改数据。
 设计文档见 `docs/superpowers/specs/`。
