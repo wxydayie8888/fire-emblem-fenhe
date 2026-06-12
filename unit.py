@@ -65,6 +65,15 @@ class Unit:
                 setattr(self, stat, getattr(self, stat) + 1)
         return result
 
+    def apply_boost(self, boost):
+        """章节强化（精锐敌人/Boss）：hp 同时提升上限与当前值。"""
+        for stat, add in boost.items():
+            if stat == 'hp':
+                self.max_hp += add
+                self.hp += add
+            else:
+                setattr(self, stat, getattr(self, stat) + add)
+
     def heal(self, amount):
         self.hp = min(self.max_hp, self.hp + amount)
 

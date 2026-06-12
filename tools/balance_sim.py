@@ -36,9 +36,34 @@ def fight(att, dfd, grid):
             u.ai = 'aggro'
 
 
-def best_action(u, grid, units, enemies):
-    """返回 ('attack', tile, target) / ('move', tile) / ('potion',)"""
+def best_action(u, grid, units, enemies, goal=None):
+    """返回 ('attack', tile, target) / ('heal', tile, ally) / ('move', tile) / ('potion',)"""
     tiles = move_range(u, grid, units)
+    # 修女：找最伤的可及友军治疗，否则跟随队伍
+    if not C.can_attack(u):
+        allies = [a for a in units if a.team == 'player' and a.alive
+                  and a is not u and a.hp < a.max_hp]
+        best_h = None
+        for a in allies:
+            for t in tiles:
+                if manhattan(t, (a.x, a.y)) == 1:
+                    score = (a.max_hp - a.hp)
+                    if best_h is None or score > best_h[0]:
+                        best_h = (score, t, a)
+        if best_h:
+            return ('heal', best_h[1], best_h[2])
+        if u.hp <= u.max_hp * 0.4 and u.potions > 0:
+            return ('potion',)
+        mates = [a for a in units if a.team == 'player' and a.alive and a is not u]
+        if mates:
+            tgt = min(mates, key=lambda a: manhattan((u.x, u.y), (a.x, a.y)))
+            return ('move', min(tiles, key=lambda t: manhattan(t, (tgt.x, tgt.y))))
+        return ('move', (u.x, u.y))
+    # 占领图：主角全速奔向目标点
+    if goal is not None:
+        if goal in tiles:
+            return ('move', goal)
+        return ('move', min(tiles, key=lambda t: manhattan(t, goal)))
     lo, hi = u.weapon_range
     best = None
     for e in enemies:
@@ -86,36 +111,61 @@ def sim_chapter(idx, roster, seed, max_turns=30):
         u.x, u.y = pos
         u.hp = u.max_hp
         u.potions = 3
-    enemies = [Unit(e['name'], e['cls'], 'enemy', e['pos'],
-                    boss=e.get('boss', False), ai=e.get('ai', 'aggro'))
-               for e in ch['enemies']]
+    def make_enemy(spec):
+        u = Unit(spec['name'], spec['cls'], 'enemy', spec['pos'],
+                 boss=spec.get('boss', False), ai=spec.get('ai', 'aggro'))
+        u.apply_boost(ch.get('enemy_boost', {}))
+        u.apply_boost(spec.get('boost', {}))
+        return u
+
+    enemies = [make_enemy(e) for e in ch['enemies']]
     units = roster + enemies
     grid = Grid(ch['map'])
     lord = roster[0]
+    goal = tuple(ch['goal']) if ch['win'] == 'seize' else None
 
-    def won():
+    def won(turn):
+        if ch['win'] == 'seize' and (lord.x, lord.y) == goal:
+            return True
+        if ch['win'] == 'defend' and turn > ch['hold_turns']:
+            return True
         alive_e = [e for e in enemies if e.alive]
         if not alive_e:
             return True
         return ch['win'] == 'boss' and not any(e.boss for e in alive_e)
 
     for turn in range(1, max_turns + 1):
+        if won(turn):
+            return turn, None
         for u in [x for x in roster if x.alive]:
-            if won():
+            if won(turn):
                 return turn, None
-            act = best_action(u, grid, units, [e for e in enemies if e.alive])
+            act = best_action(u, grid, units, [e for e in enemies if e.alive],
+                              goal=goal if u is lord else None)
             if act[0] == 'attack':
                 u.x, u.y = act[1]
                 fight(u, act[2], grid)
+            elif act[0] == 'heal':
+                u.x, u.y = act[1]
+                amount = min(C.heal_amount(u), act[2].max_hp - act[2].hp)
+                act[2].heal(amount)
+                u.gain_exp(15)
             elif act[0] == 'potion':
                 u.use_potion()
             else:
                 u.x, u.y = act[1]
             if not lord.alive:
                 return None, '阵亡'
-        if won():
+        if won(turn):
             return turn, None
         heal_phase(roster, grid)
+        # 增援
+        for spec in ch.get('reinforce', {}).get(turn, []):
+            occ = {(x.x, x.y) for x in units if x.alive}
+            if tuple(spec['pos']) not in occ:
+                nu = make_enemy(spec)
+                enemies.append(nu)
+                units.append(nu)
         for e in [x for x in enemies if x.alive]:
             if not e.alive:
                 continue
@@ -130,13 +180,14 @@ def sim_chapter(idx, roster, seed, max_turns=30):
 
 
 def run(n=20):
-    results = {0: [], 1: [], 2: []}
-    reasons = {0: {}, 1: {}, 2: {}}
+    total = len(CHAPTERS)
+    results = {i: [] for i in range(total)}
+    reasons = {i: {} for i in range(total)}
     full_wins = 0
     for seed in range(n):
         roster = [Unit(s['name'], s['cls'], 'player', (0, 0)) for s in PLAYER_ROSTER]
         ok = True
-        for idx in range(3):
+        for idx in range(total):
             r, why = sim_chapter(idx, roster, seed * 100 + idx)
             results[idx].append(r)
             if r is None:
@@ -145,7 +196,7 @@ def run(n=20):
                 break
         if ok:
             full_wins += 1
-    for idx in range(3):
+    for idx in range(total):
         runs = results[idx]
         wins = [r for r in runs if r is not None]
         rate = len(wins) / len(runs) * 100 if runs else 0

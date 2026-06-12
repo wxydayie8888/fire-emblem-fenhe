@@ -154,9 +154,13 @@ class Game:
         if not retry:
             self.snapshot = copy.deepcopy(self.roster)
             save.save_game(self.chapter_idx, [u.to_dict() for u in self.roster])
-        enemies = [Unit(e['name'], e['cls'], 'enemy', e['pos'],
-                        boss=e.get('boss', False), ai=e.get('ai', 'aggro'))
-                   for e in ch['enemies']]
+        enemies = []
+        for e in ch['enemies']:
+            u = Unit(e['name'], e['cls'], 'enemy', e['pos'],
+                     boss=e.get('boss', False), ai=e.get('ai', 'aggro'))
+            u.apply_boost(ch.get('enemy_boost', {}))
+            u.apply_boost(e.get('boost', {}))
+            enemies.append(u)
         self.units = self.roster + enemies
         self.grid = Grid(ch['map'])
         self.turn = 1
@@ -242,9 +246,11 @@ class Game:
         spawned = False
         for spec in specs:
             if self.unit_at(tuple(spec['pos'])) is None:
-                self.units.append(Unit(spec['name'], spec['cls'], 'enemy', spec['pos'],
-                                       boss=spec.get('boss', False),
-                                       ai=spec.get('ai', 'aggro')))
+                u = Unit(spec['name'], spec['cls'], 'enemy', spec['pos'],
+                         boss=spec.get('boss', False), ai=spec.get('ai', 'aggro'))
+                u.apply_boost(self.chapter.get('enemy_boost', {}))
+                u.apply_boost(spec.get('boost', {}))
+                self.units.append(u)
                 spawned = True
             else:
                 self.pending_reinforce.append(spec)

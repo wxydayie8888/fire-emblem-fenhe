@@ -106,3 +106,12 @@ def test_cleric_cannot_attack_but_heals():
     assert not combat.can_attack(thea)
     assert combat.can_attack(make_lord())
     assert combat.heal_amount(thea) == 10 + thea.pow
+
+
+def test_apply_boost():
+    e = Unit('精锐', 'fighter', 'enemy', (0, 0))
+    e.apply_boost({'hp': 6, 'pow': 2, 'dfn': 1})
+    assert e.max_hp == 26 and e.hp == 26
+    assert e.pow == 9 and e.dfn == 5
+    e.apply_boost({})                      # 空加成无副作用
+    assert e.max_hp == 26
