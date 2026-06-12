@@ -57,6 +57,7 @@ def _build():
     snd['defeat'] = _concat(_tone(392, 0.18, 0.4, 'sine'), _tone(330, 0.18, 0.4, 'sine'),
                             _tone(262, 0.35, 0.4, 'sine'))
     snd['turn'] = _concat(_tone(440, 0.06, 0.25), _tone(587, 0.10, 0.25))
+    snd['die'] = _tone((300, 70), 0.28, 0.4, 'sine')
     return {k: (np.clip(v, -1, 1) * 32767).astype(np.int16) for k, v in snd.items()}
 
 

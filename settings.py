@@ -440,6 +440,8 @@ CHAPTERS = [
             {'name': '殿前重甲', 'cls': 'e_knight',  'pos': (6, 1),  'ai': 'guard'},
             {'name': '殿前重甲', 'cls': 'e_knight',  'pos': (8, 1),  'ai': 'guard'},
             {'name': '司仪妖术师', 'cls': 'shaman',  'pos': (7, 3),  'ai': 'guard'},
+            {'name': '雷文',     'cls': 'assassin',  'pos': (7, 5),
+             'boost': {'hp': 10, 'pow': 1}},
             {'name': '沃尔甘',   'cls': 'dark_mage', 'pos': (7, 0),  'boss': True,
              'boost': {'hp': 16, 'pow': 2, 'dfn': 4}},
         ],

@@ -51,3 +51,12 @@ def test_speakers_in_dialogues_have_sprites():
     # 我方说话人必须真的在该章出场（join 前不能说话的约束由 pre 对话顺序保证，这里只验证可渲染）
     for name, cls in story.NAME_TO_CLS.items():
         assert cls in CLASSES
+
+
+def test_fates_cover_full_roster():
+    from settings import CHAPTERS, PLAYER_ROSTER
+    names = [s['name'] for s in PLAYER_ROSTER]
+    names += [j['name'] for ch in CHAPTERS for j in ch['join']]
+    assert len(names) == 8
+    for n in names:
+        assert n in story.FATES and story.FATES[n]

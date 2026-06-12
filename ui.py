@@ -121,7 +121,8 @@ def draw_info(surf, unit, terrain_ch):
 
 def draw_help(surf):
     y0 = GRID_H * CELL
-    _text(surf, '左键 选择/确认   右键 取消   E 结束回合', 13, (SCREEN_W - 460, y0 + 84), (110, 110, 125))
+    _text(surf, '左键 选择  右键 取消  Tab 下一单位  D 危险范围  I 详情  E 结束回合', 13,
+          (SCREEN_W - 552, y0 + 84), (110, 110, 125))
 
 
 # --- 行动菜单 ---
@@ -175,6 +176,11 @@ def draw_forecast(surf, fc, att, dfd):
     _forecast_col(surf, x + 36, y + 36, att.name, a_color, att, fc['att'])
     _forecast_col(surf, x + w // 2 + 36, y + 36, dfd.name, d_color, dfd, fc['def'])
     pygame.draw.line(surf, COL_BORDER, (x + w // 2, y + 36), (x + w // 2, y + h - 36), 1)
+    # 致命提示：预计伤害足以击破对方
+    if fc['att']['dmg'] * fc['att']['count'] >= dfd.hp:
+        _text(surf, '致命!', 15, (x + 24, y + 12), COL_GOLD)
+    if fc['def'] and fc['def']['dmg'] * fc['def']['count'] >= att.hp:
+        _text(surf, '危险!', 15, (x + w - 60, y + 12), (255, 90, 90))
     _text(surf, '左键/回车 确认    右键/ESC 取消', 13, (x + w // 2, y + h - 16), COL_DIM, center=True)
 
 
@@ -249,16 +255,18 @@ def draw_clear(surf, idx, title, turns):
     _text(surf, '点击继续', 16, (SCREEN_W // 2, GRID_H * CELL // 2 + 70), COL_DIM, center=True)
 
 
-def draw_complete(surf, roster):
+def draw_complete(surf, roster, fates):
     surf.fill((16, 14, 24))
-    _text(surf, '战 役 完 结', 52, (SCREEN_W // 2, 120), COL_GOLD, center=True)
-    _text(surf, '黑铁牙盗贼团已被讨伐，芬河重归和平。', 19, (SCREEN_W // 2, 190), COL_TEXT, center=True)
-    _text(surf, '— 最终队伍 —', 16, (SCREEN_W // 2, 250), COL_DIM, center=True)
-    for i, u in enumerate(roster):
-        status = f'{u.name}  {u.cls_name}  Lv{u.level}'
-        color = COL_TEXT if u.alive else (120, 120, 130)
-        _text(surf, status, 18, (SCREEN_W // 2, 290 + i * 30), color, center=True)
-    _text(surf, '感谢游玩！ 按 R 返回标题', 17, (SCREEN_W // 2, SCREEN_H - 60), COL_GOLD, center=True)
+    _text(surf, '战 役 完 结', 42, (SCREEN_W // 2, 52), COL_GOLD, center=True)
+    _text(surf, '邪龙陨落，芬河重归和平。 — 众人的后日谈 —', 17,
+          (SCREEN_W // 2, 104), COL_TEXT, center=True)
+    y = 144
+    for u in roster:
+        _text(surf, f'{u.name}', 18, (120, y), COL_GOLD)
+        _text(surf, f'{u.cls_name} Lv{u.level}', 13, (120, y + 23), COL_DIM)
+        _text(surf, fates.get(u.name, ''), 15, (215, y + 8))
+        y += 47
+    _text(surf, '感谢游玩！ 按 R 返回标题', 16, (SCREEN_W // 2, SCREEN_H - 30), COL_GOLD, center=True)
 
 
 def draw_objective(surf, turn, text):

@@ -63,6 +63,10 @@ class Game:
         self.targets, self.target, self.fc = [], None, None
         self.target_mode = 'attack'
         self.threat, self.threat_unit = set(), None
+        self.threat_all = False        # D键：全敌威胁范围
+        self.dying = []                # 死亡淡出动画 [{'unit','t'}]
+        self.flash_t = 0.0             # 必杀白闪
+        self.end_confirm_t = 0.0       # E键二次确认窗口
         self.combat_events, self.combat_idx = [], 0
         self.event_t, self.event_spawned = 0.0, False
         self.hp_display = {}
@@ -299,6 +303,25 @@ class Game:
         self.move_tiles, self.fringe = self._range_tiles(unit)
         self.state = 'MOVE'
 
+    def select_next_unit(self):
+        """Tab 循环选择下一个未行动单位。"""
+        avail = [u for u in self.alive('player') if not u.acted]
+        if not avail:
+            return
+        if self.selected in avail:
+            idx = (avail.index(self.selected) + 1) % len(avail)
+        else:
+            idx = 0
+        self.select(avail[idx])
+
+    def all_threat_tiles(self):
+        """全部存活敌人的(移动∪攻击)范围并集。"""
+        tiles = set()
+        for e in self.alive('enemy'):
+            t, fringe = self._range_tiles(e, allow_move=not e.boss)
+            tiles |= set(t) | fringe
+        return tiles
+
     def toggle_threat(self, enemy):
         """待机时点击敌人 → 显示/关闭其威胁范围"""
         if self.threat_unit is enemy:
@@ -375,6 +398,12 @@ class Game:
         self.state = 'COMBAT'
 
     def combat_finished(self):
+        # 死亡淡出动画
+        dead = {u for ev in self.combat_events for u in (ev['actor'], ev['target'])
+                if not u.alive}
+        for u in dead:
+            self.dying.append({'unit': u, 't': 0.0})
+            sfx.play('die')
         # 被打的驻守敌人被激活
         for ev in self.combat_events:
             t = ev['target']
@@ -556,7 +585,18 @@ class Game:
 
         if event.type == pygame.KEYDOWN:
             if key == pygame.K_e and self.state == 'IDLE':
-                self.start_enemy_phase()
+                unacted = [u for u in self.alive('player') if not u.acted]
+                if not unacted or self.end_confirm_t > 0:
+                    self.end_confirm_t = 0.0
+                    self.start_enemy_phase()
+                else:
+                    self.end_confirm_t = 2.0
+                    self.show_banner('尚有未行动单位 · 再按 E 确认', ui.COL_GOLD)
+            elif key == pygame.K_d and self.state in ('IDLE', 'MOVE'):
+                self.threat_all = not self.threat_all
+                sfx.play('select')
+            elif key == pygame.K_TAB and self.state in ('IDLE', 'MOVE'):
+                self.select_next_unit()
             elif key == pygame.K_i and self.state in ('IDLE', 'MOVE'):
                 u = ((self.unit_at(self.hover) if self.hover else None)
                      or self.selected or self.threat_unit)
@@ -705,6 +745,11 @@ class Game:
         for f in self.floats:
             f['t'] += dt / FLOAT_DUR
         self.floats = [f for f in self.floats if f['t'] < 1.0]
+        for d in self.dying:
+            d['t'] += dt / 0.6
+        self.dying = [d for d in self.dying if d['t'] < 1.0]
+        self.flash_t = max(0.0, self.flash_t - dt)
+        self.end_confirm_t = max(0.0, self.end_confirm_t - dt)
         if self.banner is not None:
             self.banner['t'] += dt / BANNER_DUR
             if self.banner['t'] >= 1.0:
@@ -750,6 +795,7 @@ class Game:
             else:
                 if ev['crit']:
                     sfx.play('crit')
+                    self.flash_t = 0.12
                     self.add_float('必杀!', (ev['actor'].x, ev['actor'].y), ui.COL_GOLD)
                 else:
                     sfx.play('hit')
@@ -802,7 +848,7 @@ class Game:
             ui.draw_intro(surf, self.chapter_idx, self.chapter)
             return
         if self.state == 'COMPLETE':
-            ui.draw_complete(surf, self.roster)
+            ui.draw_complete(surf, self.roster, story.FATES)
             return
         if self.state == 'PROLOGUE':
             ui.draw_prologue(surf, self.pages[self.page_idx],
@@ -821,6 +867,8 @@ class Game:
                 variant = 1 if (ch == 'B' and x > 0 and self.grid.rows[y][x - 1] == 'B') else 0
                 surf.blit(assets.terrain_sprite(ch, water_frame, variant), (x * CELL, y * CELL))
 
+        if self.threat_all and self.state in ('IDLE', 'MOVE'):
+            ui.draw_tiles(surf, self.all_threat_tiles(), ui.ATTACK_TILE)
         if self.state == 'MOVE':
             ui.draw_tiles(surf, self.fringe, ui.ATTACK_TILE)
             ui.draw_tiles(surf, self.move_tiles, ui.MOVE_TILE)
@@ -853,6 +901,16 @@ class Game:
                 ui.draw_hp_bar(surf, u, px, py)
             if u.boss:
                 ui.draw_boss_mark(surf, px, py)
+
+        for d in self.dying:               # 死亡淡出
+            u = d['unit']
+            spr = assets.unit_sprite(u.cls, 0).copy()
+            spr.set_alpha(max(0, int(200 * (1 - d['t']))))
+            surf.blit(spr, (u.x * CELL, u.y * CELL))
+        if self.flash_t > 0:               # 必杀白闪
+            veil = pygame.Surface((GRID_W * CELL, GRID_H * CELL), pygame.SRCALPHA)
+            veil.fill((255, 255, 255, 80))
+            surf.blit(veil, (0, 0))
 
         if self.selected and self.state in ('MOVE', 'MENU', 'TARGET', 'FORECAST'):
             ui.draw_cursor(surf, (self.selected.x, self.selected.y), ui.COL_GOLD)
