@@ -270,6 +270,13 @@ def draw_objective(surf, turn, text):
     surf.blit(chip, (4 + pad, 4 + pad // 2))
 
 
+def _fit(pic, size):
+    """立绘缩放：缩小用平滑缩放（AI高清图），放大用临近缩放（像素图保持锐利）。"""
+    if pic.get_width() > size:
+        return pygame.transform.smoothscale(pic, (size, size))
+    return pygame.transform.scale(pic, (size, size))
+
+
 # --- 旁白页 / 对话框 ---
 
 def _wrap(text, size, max_w):
@@ -306,7 +313,7 @@ def draw_dialogue(surf, speaker, side, text, sprite):
     pygame.draw.rect(surf, COL_BORDER, box, 2, border_radius=10)
     text_x, text_w = box.x + 24, box.w - 48
     if sprite is not None:
-        big = pygame.transform.scale(sprite, (96, 96))
+        big = _fit(sprite, 96)
         if side == 'right':
             surf.blit(big, (box.right - 114, box.y + box_h // 2 - 48))
             text_x, text_w = box.x + 24, box.w - 156
@@ -349,7 +356,7 @@ def draw_codex(surf, entries, sel, pic_fn):
     # 右侧详情
     name, b = entries[sel]
     c = CLASSES[b['cls']]
-    surf.blit(pygame.transform.scale(pic_fn(name, b['cls']), (144, 144)), (210, 88))
+    surf.blit(_fit(pic_fn(name, b['cls']), 144), (210, 88))
     _text(surf, name, 32, (382, 100))
     _text(surf, b['title'], 17, (382, 148), COL_GOLD)
     _text(surf, f'{c["name"]} ｜ 武器：{WEAPONS[c["weapon"]]["name"]}', 15,
@@ -390,7 +397,7 @@ def draw_unit_detail(surf, unit, bio):
     pygame.draw.rect(surf, COL_BORDER, p, 2, border_radius=12)
     import assets as _assets
     pic = _assets.portrait(unit.name) or _assets.unit_sprite(unit.cls)
-    surf.blit(pygame.transform.scale(pic, (96, 96)), (p.x + 34, p.y + 26))
+    surf.blit(_fit(pic, 96), (p.x + 34, p.y + 26))
     name_col = COL_PLAYER if unit.team == 'player' else COL_ENEMY
     _text(surf, unit.name, 26, (p.x + 158, p.y + 28), name_col)
     if bio:

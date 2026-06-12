@@ -96,6 +96,8 @@ python3 -m venv .venv
 
 ## 素材与许可
 
-- 美术：[DawnLike v1.81](https://opengameart.org/content/dawnlike-16x16-universal-rogue-like-tileset-v181)
+- 地图/单位像素美术：[DawnLike v1.81](https://opengameart.org/content/dawnlike-16x16-universal-rogue-like-tileset-v181)
   （作者 DragonDePlatino，调色板 DawnBringer，CC-BY 4.0），详见 `CREDITS.txt`
+- 角色立绘：LibTV（Midjourney Niji 7）AI 生成（`assets/portraits/`）；
+  另有 `tools/gen_portraits.py` 可重新生成原创像素风版本作为替代
 - 音效：运行时 numpy 程序化合成，无外部音频文件
