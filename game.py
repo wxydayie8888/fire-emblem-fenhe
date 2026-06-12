@@ -61,6 +61,7 @@ class Game:
         self.orig_pos = None
         self.menu_items, self.menu_rects, self.menu_sel = [], [], 0
         self.targets, self.target, self.fc = [], None, None
+        self.target_mode = 'attack'
         self.threat, self.threat_unit = set(), None
         self.combat_events, self.combat_idx = [], 0
         self.event_t, self.event_spawned = 0.0, False
@@ -161,6 +162,7 @@ class Game:
         self.turn = 1
         self._clear_battle_state()
         self.boss_quote_shown = False
+        self.pending_reinforce, self.reinforce_used = [], set()
         self.state = 'IDLE'
 
     def enter_battle(self):
@@ -217,6 +219,11 @@ class Game:
 
     def start_player_phase(self):
         self.turn += 1
+        ch = self.chapter
+        if ch['win'] == 'defend' and self.turn > ch['hold_turns']:
+            sfx.play('victory')              # 坚守成功
+            self.trigger_victory()
+            return
         for u in self.alive('player'):
             u.acted = False
         self.fortress_heal('player')
@@ -224,12 +231,34 @@ class Game:
         sfx.play('turn')
         self.state = 'IDLE'
 
+    def spawn_reinforcements(self):
+        """敌方阶段开始时刷增援；落点被占则顺延下回合。返回是否有刷出。"""
+        specs = list(self.pending_reinforce)
+        self.pending_reinforce = []
+        table = self.chapter.get('reinforce', {})
+        if self.turn in table and self.turn not in self.reinforce_used:
+            self.reinforce_used.add(self.turn)
+            specs += table[self.turn]
+        spawned = False
+        for spec in specs:
+            if self.unit_at(tuple(spec['pos'])) is None:
+                self.units.append(Unit(spec['name'], spec['cls'], 'enemy', spec['pos'],
+                                       boss=spec.get('boss', False),
+                                       ai=spec.get('ai', 'aggro')))
+                spawned = True
+            else:
+                self.pending_reinforce.append(spec)
+        return spawned
+
     def start_enemy_phase(self):
         for u in self.alive('player'):
             u.acted = True
         self.clear_selection()
         self.fortress_heal('enemy')
-        self.show_banner('敌方行动', ui.COL_ENEMY)
+        if self.spawn_reinforcements():
+            self.show_banner('敌 方 增 援 ！', ui.COL_ENEMY)
+        else:
+            self.show_banner('敌方行动', ui.COL_ENEMY)
         sfx.play('turn')
         self.enemy_queue = list(self.alive('enemy'))
         self.enemy_sub = 'banner'
@@ -275,21 +304,48 @@ class Game:
         self.threat_unit = enemy
 
     def targets_from(self, unit):
+        if not combat.can_attack(unit):
+            return []
         lo, hi = unit.weapon_range
         return [u for u in self.alive('enemy')
                 if lo <= manhattan((unit.x, unit.y), (u.x, u.y)) <= hi]
 
+    def heal_targets_from(self, unit):
+        """治疗杖目标：相邻的受伤友军。"""
+        if combat.can_attack(unit):
+            return []
+        return [u for u in self.alive('player')
+                if u is not unit and u.hp < u.max_hp
+                and manhattan((unit.x, unit.y), (u.x, u.y)) == 1]
+
     def enter_menu(self):
-        self.targets = self.targets_from(self.selected)
         u = self.selected
-        self.menu_items = [('攻击', bool(self.targets)),
-                           ('用药', u.potions > 0 and u.hp < u.max_hp),
-                           ('待机', True)]
+        self.target_mode = 'attack'
+        self.targets = self.targets_from(u)
+        heals = self.heal_targets_from(u)
+        self.menu_items = []
+        if combat.can_attack(u):
+            self.menu_items.append(('攻击', bool(self.targets)))
+        else:
+            self.menu_items.append(('治疗', bool(heals)))
+        self.menu_items += [('用药', u.potions > 0 and u.hp < u.max_hp),
+                            ('待机', True)]
         self.menu_sel = 0
         self.state = 'MENU'
 
+    def trigger_victory(self):
+        post = story.CHAPTER_DIALOGUE[self.chapter_idx]['post']
+        self.start_dialogue(post, self.chapter_clear)
+
     def finish_unit(self):
         self.selected.acted = True
+        ch = self.chapter
+        if (ch['win'] == 'seize' and self.selected is self.lord
+                and (self.lord.x, self.lord.y) == tuple(ch['goal'])):
+            self.clear_selection()
+            sfx.play('victory')
+            self.trigger_victory()           # 占领目标点
+            return
         self.clear_selection()
         self.state = 'IDLE'
         if all(u.acted for u in self.alive('player')):
@@ -302,8 +358,8 @@ class Game:
 
     def start_combat(self, att, dfd, after):
         dist = manhattan((att.x, att.y), (dfd.x, dfd.y))
-        att_avoid = self.grid.terrain(att.x, att.y)['avoid']
-        def_avoid = self.grid.terrain(dfd.x, dfd.y)['avoid']
+        att_avoid = self.grid.avoid(att)
+        def_avoid = self.grid.avoid(dfd)
         self.hp_display = {att: att.hp, dfd: dfd.hp}
         events, exp = combat.resolve(att, dfd, dist, att_avoid, def_avoid)
         self.combat_events = events
@@ -344,8 +400,7 @@ class Game:
 
     def continue_after_combat(self):
         if self._chapter_won():
-            post = story.CHAPTER_DIALOGUE[self.chapter_idx]['post']
-            self.start_dialogue(post, self.chapter_clear)
+            self.trigger_victory()
             return
         if not self.lord.alive or not self.alive('player'):
             sfx.play('defeat')
@@ -544,6 +599,11 @@ class Game:
                     label = self.menu_items[i][0]
                     sfx.play('confirm')
                     if label == '攻击':
+                        self.target_mode = 'attack'
+                        self.state = 'TARGET'
+                    elif label == '治疗':
+                        self.target_mode = 'heal'
+                        self.targets = self.heal_targets_from(self.selected)
                         self.state = 'TARGET'
                     elif label == '用药':
                         healed = self.selected.use_potion()
@@ -588,17 +648,36 @@ class Game:
             for t in self.targets:
                 if (t.x, t.y) == cell:
                     sfx.play('select')
+                    if self.target_mode == 'heal':
+                        self.perform_heal(t)
+                        return
                     self.target = t
                     dist = manhattan((self.selected.x, self.selected.y), cell)
-                    self.fc = combat.forecast(
-                        self.selected, t, dist,
-                        self.grid.terrain(self.selected.x, self.selected.y)['avoid'],
-                        self.grid.terrain(t.x, t.y)['avoid'])
+                    self.fc = combat.forecast(self.selected, t, dist,
+                                              self.grid.avoid(self.selected),
+                                              self.grid.avoid(t))
                     self.state = 'FORECAST'
                     return
 
         elif self.state == 'FORECAST':
             self.confirm_attack()
+
+    def perform_heal(self, target):
+        """修女治疗：立即结算，无预测无反击。"""
+        sfx.play('heal')
+        amount = min(combat.heal_amount(self.selected), target.max_hp - target.hp)
+        target.heal(amount)
+        self.add_float(f'+{amount}', (target.x, target.y), (120, 230, 120))
+        self.add_float('+15EXP', (self.selected.x, self.selected.y), (160, 200, 255))
+        self.after_combat = 'player'
+        for gains in self.selected.gain_exp(15):
+            self.levelups.append((self.selected, gains))
+        if self.levelups:
+            self.levelup_t = 0.0
+            sfx.play('levelup')
+            self.state = 'LEVELUP'
+        else:
+            self.finish_unit()
 
     def confirm_attack(self):
         sfx.play('confirm')
@@ -740,9 +819,12 @@ class Game:
             ui.draw_tiles(surf, self.fringe, ui.ATTACK_TILE)
             ui.draw_tiles(surf, self.move_tiles, ui.MOVE_TILE)
         elif self.state in ('TARGET', 'FORECAST'):
-            ui.draw_tiles(surf, [(t.x, t.y) for t in self.targets], ui.TARGET_TILE)
+            tile_col = ui.MOVE_TILE if self.target_mode == 'heal' else ui.TARGET_TILE
+            ui.draw_tiles(surf, [(t.x, t.y) for t in self.targets], tile_col)
         elif self.state == 'IDLE' and self.threat:
             ui.draw_tiles(surf, self.threat, ui.ATTACK_TILE)
+        if self.chapter['win'] == 'seize' and int(self.time * 2) % 2 == 0:
+            ui.draw_cursor(surf, tuple(self.chapter['goal']), ui.COL_GOLD)   # 占领点闪烁
 
         unit_frame = int(self.time * 2.4)
         for u in self.units:
@@ -794,7 +876,11 @@ class Game:
                       if self.hover and self.grid.in_bounds(*self.hover) else None)
         ui.draw_info(surf, info_unit, terrain_ch)
         ui.draw_help(surf)
-        ui.draw_objective(surf, self.turn, self.chapter['objective'])
+        obj = self.chapter['objective']
+        if self.chapter['win'] == 'defend':
+            remain = max(0, self.chapter['hold_turns'] - self.turn + 1)
+            obj = f'{obj}（剩 {remain} 回合）'
+        ui.draw_objective(surf, self.turn, obj)
 
         if self.state == 'MENU':
             px = (self.selected.x + 1) * CELL + 4
