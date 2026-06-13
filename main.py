@@ -15,6 +15,8 @@ def main():
     assets.load()
     import sfx
     sfx.init()
+    import music
+    music.init()
     from game import Game
     clock = pygame.time.Clock()
     game = Game()

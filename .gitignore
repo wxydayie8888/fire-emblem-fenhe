@@ -1,4 +1,8 @@
-assets/
+# DawnLike 像素素材由 tools/fetch_assets.py 下载，不入库；
+# 但 AI 生成的立绘/场景原画/配乐是独一份的自定义资源，需纳入版本控制。
+assets/*
+!assets/portraits/
+!assets/cinema/
 __pycache__/
 *.pyc
 .pytest_cache/

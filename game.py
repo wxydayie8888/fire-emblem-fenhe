@@ -10,6 +10,7 @@ import pygame
 
 import assets
 import combat
+import music
 import records
 import save
 import sfx
@@ -99,6 +100,7 @@ class Game:
         if all(assets.cinema(s['img']) is not None for s in story.CINEMA_SCENES):
             self.cinema_idx, self.cinema_t = 0, 0.0
             self.state = 'CINEMA'              # 电影化前情提要
+            music.play_cinema()               # AI 史诗交响乐
         else:
             self.start_pages(story.PROLOGUE, self.begin_intro)
 
@@ -107,6 +109,7 @@ class Game:
         self.cinema_idx += 1
         self.cinema_t = 0.0
         if skip_all or self.cinema_idx >= len(story.CINEMA_SCENES):
+            music.stop_cinema()
             self.begin_intro()
 
     def continue_game(self):
@@ -581,6 +584,9 @@ class Game:
             self.ff = True
         elif event.type == pygame.KEYUP and event.key == pygame.K_SPACE:
             self.ff = False
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
+            music.set_enabled(not music.is_on())   # M 键开关音乐
+            self.show_banner('音乐 开' if music.is_on() else '音乐 关', ui.COL_GOLD)
         if event.type == pygame.MOUSEMOTION:
             mx, my = event.pos
             self.hover = (mx // CELL, my // CELL) if my < GRID_H * CELL else None
@@ -880,8 +886,17 @@ class Game:
 
     # ---------- 更新 ----------
 
+    def _update_music(self):
+        """每帧驱动音乐总监：CINEMA 用 AI 交响乐，其余按状态/章节情绪切曲。"""
+        if self.state == 'CINEMA':
+            return                         # 由 enter/exit 钩子控制 mixer.music
+        music.director.update(
+            music.track_for(self.state, self.chapter_idx,
+                            enemy_phase=(self.state == 'ENEMY_TURN')))
+
     def update(self, dt):
         self.time += dt
+        self._update_music()
         if self.state == 'CINEMA':
             self.cinema_t += dt
             if self.cinema_t >= story.CINEMA_SCENES[self.cinema_idx]['dur']:
