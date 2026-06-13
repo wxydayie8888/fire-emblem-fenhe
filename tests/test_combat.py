@@ -146,3 +146,48 @@ def test_skill_great_shield_halves_damage():
     seq = iter([0.0, 0.99, 0.0])       # 命中 / 不必杀 / 大盾触发
     combat.resolve(atk, marshal, 2, 0, 0, rng=lambda: next(seq))
     assert marshal.max_hp - marshal.hp == full - full // 2     # 半伤
+
+
+# ---------- 特效武器 ----------
+
+def archer(**kw):
+    u = Unit('弓兵', 'archer', 'player', (0, 0))
+    for k, v in kw.items():
+        setattr(u, k, v)
+    return u
+
+
+def pegasus(**kw):
+    u = Unit('飞兵', 'pegasus', 'enemy', (2, 0))
+    for k, v in kw.items():
+        setattr(u, k, v)
+    return u
+
+
+def test_effective_bow_vs_flier():
+    a, p = archer(), pegasus()
+    base = a.pow + 6                                   # 弓威力6，无三角
+    assert combat.is_effective(a, p)                   # 弓克飞行
+    assert combat.calc_damage(a, p) == max(0, base * 3 - p.dfn)
+    # 反向：飞兵(枪)打弓兵不特效
+    assert not combat.is_effective(p, a)
+
+
+def test_effective_light_and_lord_vs_dragon():
+    from unit import Unit
+    dragon = Unit('邪龙', 'dragon', 'enemy', (3, 0))
+    bishop = Unit('主教', 'bishop', 'player', (0, 0))   # 光魔
+    roy = Unit('罗伊', 'lord', 'player', (0, 0))         # 圣剑
+    myrm = Unit('剑客', 'myrmidon', 'player', (0, 0))    # 普通剑
+    assert combat.is_effective(bishop, dragon)
+    assert combat.is_effective(roy, dragon)             # 领主圣剑克龙
+    assert not combat.is_effective(myrm, dragon)        # 普通剑不克
+
+
+def test_non_flier_not_effective():
+    assert not combat.is_effective(archer(), fighter())  # 弓对步兵无特效
+
+
+def test_forecast_carries_effective():
+    fc = combat.forecast(archer(), pegasus(), dist=2, att_avoid=0, def_avoid=0)
+    assert fc['att']['effective'] is True

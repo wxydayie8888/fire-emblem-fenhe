@@ -2,7 +2,8 @@
 import random
 
 from settings import (WEAPONS, WEAPON_BEATS, TRIANGLE_DMG, TRIANGLE_HIT,
-                      DOUBLE_SPD_GAP, CRIT_MULT, EXP_HIT, EXP_KILL, EXP_BOSS_KILL)
+                      DOUBLE_SPD_GAP, CRIT_MULT, EXP_HIT, EXP_KILL, EXP_BOSS_KILL,
+                      CLASS_TRAITS, EFFECTIVE_WEAPON, CLASS_EFFECTIVE, EFFECTIVE_MULT)
 
 
 def triangle(att_w, def_w):
@@ -14,6 +15,16 @@ def triangle(att_w, def_w):
     return 0, 0
 
 
+def is_effective(att, dfd):
+    """攻方武器/职业是否对守方兵种特效（弓克飞行、光魔/圣剑克龙…）。"""
+    traits = CLASS_TRAITS.get(getattr(dfd, 'cls', None), set())
+    if not traits:
+        return False
+    src = (EFFECTIVE_WEAPON.get(att.weapon, set())
+           | CLASS_EFFECTIVE.get(getattr(att, 'cls', None), set()))
+    return bool(src & traits)
+
+
 def _skill(u):
     """单位职业技 dict（Unit.skill() 或空）。兼容无 skill 方法的对象。"""
     fn = getattr(u, 'skill', None)
@@ -21,11 +32,13 @@ def _skill(u):
 
 
 def calc_damage(att, dfd, sup_dmg=0):
-    """sup_dmg: 攻方支援伤害加成。职业技：攻方魔力、守方额外防御自动计入。"""
+    """sup_dmg: 攻方支援伤害加成。职业技：攻方魔力、守方额外防御自动计入。
+    特效武器对克制兵种：攻击力×EFFECTIVE_MULT 后再减防御（火纹算法）。"""
     d, _ = triangle(att.weapon, dfd.weapon)
-    raw = (att.pow + WEAPONS[att.weapon]['might'] + d
-           + _skill(att).get('pow', 0) + sup_dmg
-           - dfd.dfn - _skill(dfd).get('dfn', 0))
+    atk = att.pow + WEAPONS[att.weapon]['might'] + d + _skill(att).get('pow', 0) + sup_dmg
+    if is_effective(att, dfd):
+        atk *= EFFECTIVE_MULT
+    raw = atk - dfd.dfn - _skill(dfd).get('dfn', 0)
     return max(0, raw)
 
 
@@ -75,13 +88,15 @@ def forecast(att, dfd, dist, att_avoid, def_avoid, att_sup=None, def_sup=None):
     res = {'att': {'dmg': calc_damage(att, dfd, a['dmg']),
                    'hit': calc_hit(att, dfd, def_avoid, a['hit'], d['avoid']),
                    'crit': calc_crit(att, a['crit']),
-                   'count': 2 if can_double(att, dfd) else 1},
+                   'count': 2 if can_double(att, dfd) else 1,
+                   'effective': is_effective(att, dfd)},
            'def': None}
     if in_range(dfd, dist):
         res['def'] = {'dmg': calc_damage(dfd, att, d['dmg']),
                       'hit': calc_hit(dfd, att, att_avoid, d['hit'], a['avoid']),
                       'crit': calc_crit(dfd, d['crit']),
-                      'count': 2 if can_double(dfd, att) else 1}
+                      'count': 2 if can_double(dfd, att) else 1,
+                      'effective': is_effective(dfd, att)}
     return res
 
 

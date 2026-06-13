@@ -38,6 +38,20 @@ STAFF_BASE_HEAL = 10   # 治疗量 = 基础 + 力量
 WEAPON_BEATS = {'sword': 'axe', 'axe': 'lance', 'lance': 'sword'}  # 剑克斧 斧克枪 枪克剑
 TRIANGLE_DMG, TRIANGLE_HIT = 1, 15
 
+# --- 特效武器（火纹经典）：对特定兵种攻击力×N ---
+EFFECTIVE_MULT = 3
+# 兵种特征（按职业）：飞行/骑乘/重甲/龙
+CLASS_TRAITS = {
+    'pegasus': {'fly'}, 'falcon': {'fly'}, 'wyvern': {'fly'},
+    'cavalier': {'horse'}, 'paladin': {'horse'},
+    'knight': {'armor'}, 'general': {'armor'}, 'marshal': {'armor'}, 'e_knight': {'armor'},
+    'dragon': {'dragon'},
+}
+# 武器 → 可特效打击的特征：弓克飞行、光魔克龙
+EFFECTIVE_WEAPON = {'bow': {'fly'}, 'light': {'dragon'}}
+# 职业自带特效：罗伊（领主/大领主）的圣剑封印之力克制邪龙
+CLASS_EFFECTIVE = {'lord': {'dragon'}, 'great_lord': {'dragon'}}
+
 # --- 职业: 初始属性 + 成长率(%) ---
 # 属性键: hp/pow(力量)/skl(技巧)/spd(速度)/dfn(防御)/mov(移动)
 CLASSES = {

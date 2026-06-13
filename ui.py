@@ -188,10 +188,12 @@ def _forecast_col(surf, x, y, title, color, unit, side):
     _text(surf, dmg, 16, (x, y + 56), COL_GOLD if side['count'] > 1 else COL_TEXT)
     _text(surf, f'命中  {side["hit"]}', 16, (x, y + 82))
     _text(surf, f'必杀  {side["crit"]}', 16, (x, y + 108))
+    if side.get('effective'):
+        _text(surf, '★ 特效克制', 14, (x, y + 132), (255, 120, 80))
 
 
 def draw_forecast(surf, fc, att, dfd):
-    w, h = 380, 190
+    w, h = 380, 208
     x = (SCREEN_W - w) // 2
     y = (GRID_H * CELL - h) // 2
     panel = pygame.Rect(x, y, w, h)
