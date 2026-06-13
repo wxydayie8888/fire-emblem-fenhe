@@ -158,6 +158,8 @@ TERRAIN_HD = {'P': 'grass', 'F': 'forest', 'M': 'mountain', 'W': 'water',
 UNIT_HD_ALIAS = {'great_lord': 'lord', 'paladin': 'cavalier', 'sniper': 'archer',
                  'sage': 'mage', 'swordmaster': 'myrmidon', 'bishop': 'cleric',
                  'falcon': 'pegasus', 'marshal': 'knight'}
+# 地图美术开关：正统像素风(DawnLike) / HD立绘。立绘始终用于对话与图鉴。
+HD_MAP = False
 _hd_terrain, _hd_unit = {}, {}
 
 
@@ -191,6 +193,8 @@ _hd_terrain_var = {}
 
 def hd_terrain(ch, vi=0):
     """HD 地形图块（CELL×CELL）。vi: 0-3 选择翻转变体（仅自然地形）。缺失返回 None。"""
+    if not HD_MAP:
+        return None
     if ch not in _hd_terrain:
         name = TERRAIN_HD.get(ch)
         img = _load_hd('terrain', name) if name else None
@@ -214,6 +218,8 @@ def terrain_variation(x, y):
 
 def hd_unit(cls):
     """HD 单位 token（CELL×CELL，居中、已抠图）。缺失返回 None。"""
+    if not HD_MAP:
+        return None
     if cls not in _hd_unit:
         name = UNIT_HD_ALIAS.get(cls, cls)
         img = _load_hd('units', name)

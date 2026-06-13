@@ -1056,6 +1056,27 @@ class Game:
 
     # ---------- 绘制 ----------
 
+    def _draw_shorelines(self, surf, rows):
+        """水格朝向陆地的边描一道浅沙色浪沿，软化草水直角接缝。"""
+        b = 5
+        sand = (214, 198, 150)
+        for y in range(GRID_H):
+            for x in range(GRID_W):
+                if rows[y][x] != 'W':
+                    continue
+                px, py = x * CELL, y * CELL
+                for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < GRID_W and 0 <= ny < GRID_H and rows[ny][nx] == 'W':
+                        continue                    # 邻居也是水，无岸
+                    band = pygame.Surface((CELL, CELL), pygame.SRCALPHA)
+                    if dy == -1:   rect = (0, 0, CELL, b)
+                    elif dy == 1:  rect = (0, CELL - b, CELL, b)
+                    elif dx == -1: rect = (0, 0, b, CELL)
+                    else:          rect = (CELL - b, 0, b, CELL)
+                    pygame.draw.rect(band, (*sand, 120), rect)
+                    surf.blit(band, (px, py))
+
     def unit_draw_pos(self, u):
         px, py = u.x * CELL, u.y * CELL
         if self.slide and self.slide['unit'] is u:
@@ -1141,12 +1162,14 @@ class Game:
             return
 
         water_frame = int(self.time * 1.6) % 2
+        rows = self.grid.rows
         for y in range(GRID_H):
             for x in range(GRID_W):
-                ch = self.grid.rows[y][x]
-                variant = 1 if (ch == 'B' and x > 0 and self.grid.rows[y][x - 1] == 'B') else 0
+                ch = rows[y][x]
+                variant = 1 if (ch == 'B' and x > 0 and rows[y][x - 1] == 'B') else 0
                 surf.blit(assets.terrain_sprite(ch, water_frame, variant, cell=(x, y)),
                           (x * CELL, y * CELL))
+        self._draw_shorelines(surf, rows)
 
         if self.threat_all and self.state in ('IDLE', 'MOVE'):
             self._danger_tiles = self.all_threat_tiles()
