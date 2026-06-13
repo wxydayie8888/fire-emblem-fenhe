@@ -151,8 +151,53 @@ def _cut(rel, col, row):
     return pygame.transform.scale(part, (CELL, CELL))
 
 
+# --- HD 美术（桌面版）：assets/hd/terrain|units/*.png，缺失时回退 DawnLike ---
+TERRAIN_HD = {'P': 'grass', 'F': 'forest', 'M': 'mountain', 'W': 'water',
+              'B': 'bridge', 'T': 'fort', 'S': 'stone', 'R': 'wall', 'G': 'gate'}
+# 高级职复用基础职 HD 单位
+UNIT_HD_ALIAS = {'great_lord': 'lord', 'paladin': 'cavalier', 'sniper': 'archer',
+                 'sage': 'mage', 'swordmaster': 'myrmidon', 'bishop': 'cleric',
+                 'falcon': 'pegasus', 'marshal': 'knight'}
+_hd_terrain, _hd_unit = {}, {}
+
+
+def _load_hd(sub, name):
+    for ext in ('png',):
+        p = ROOT / 'assets' / 'hd' / sub / f'{name}.{ext}'
+        try:
+            return pygame.image.load(str(p)).convert_alpha()
+        except (pygame.error, FileNotFoundError):
+            pass
+    return None
+
+
+def hd_terrain(ch):
+    """HD 地形图块（CELL×CELL）。缺失返回 None。"""
+    if ch not in _hd_terrain:
+        name = TERRAIN_HD.get(ch)
+        img = _load_hd('terrain', name) if name else None
+        if img is not None:
+            img = pygame.transform.smoothscale(img, (CELL, CELL))
+        _hd_terrain[ch] = img
+    return _hd_terrain[ch]
+
+
+def hd_unit(cls):
+    """HD 单位 token（CELL×CELL，居中、已抠图）。缺失返回 None。"""
+    if cls not in _hd_unit:
+        name = UNIT_HD_ALIAS.get(cls, cls)
+        img = _load_hd('units', name)
+        if img is not None:
+            img = pygame.transform.smoothscale(img, (CELL, CELL))
+        _hd_unit[cls] = img
+    return _hd_unit[cls]
+
+
 def unit_sprite(cls, frame=0):
-    """职业精灵（frame 0/1 两帧）。无映射/缺图时回退为色块+职业首字。"""
+    """职业精灵（frame 0/1 两帧）。优先 HD，否则 DawnLike，再否则色块。"""
+    hd = hd_unit(cls)
+    if hd is not None:
+        return hd
     key = (cls, frame)
     if key in _unit_cache:
         return _unit_cache[key]
@@ -173,8 +218,11 @@ def unit_sprite(cls, frame=0):
 
 
 def terrain_sprite(ch, frame=0, variant=0):
-    """地形表面（底层+装饰已合成）。缺图回退纯色块。
+    """地形表面。优先 HD 图块；否则 DawnLike 合成；再否则纯色块。
     frame: 水面动画帧(0/1)；variant: 桥的左(0)/右(1)端。"""
+    hd = hd_terrain(ch)
+    if hd is not None:
+        return hd
     key = (ch, frame % 2, variant)
     if key in _terrain_cache:
         return _terrain_cache[key]

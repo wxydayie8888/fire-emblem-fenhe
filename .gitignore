@@ -3,6 +3,7 @@
 assets/*
 !assets/portraits/
 !assets/cinema/
+!assets/hd/
 __pycache__/
 *.pyc
 .pytest_cache/
