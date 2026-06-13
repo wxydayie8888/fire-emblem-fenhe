@@ -131,6 +131,12 @@ def draw_danger_mark(surf, px, py):
     _text(surf, '!', 14, (px + 6, py + 1), (255, 255, 255))
 
 
+def draw_support_mark(surf, px, py):
+    """获得羁绊加成的单位：右上角金色羁绊标记。"""
+    pygame.draw.circle(surf, (250, 180, 90), (px + CELL - 9, py + 8), 6)
+    _text(surf, '羁', 11, (px + CELL - 14, py + 2), (40, 30, 20))
+
+
 def draw_ff_indicator(surf):
     _text(surf, '▶▶ 快进', 16, (SCREEN_W - 86, 8), COL_GOLD)
 

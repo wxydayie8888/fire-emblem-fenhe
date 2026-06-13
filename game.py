@@ -15,6 +15,7 @@ import records
 import save
 import sfx
 import story
+import supports
 import ui
 from ai import plan_action
 from grid import Grid, manhattan, move_range
@@ -510,7 +511,9 @@ class Game:
         att_avoid = self.grid.avoid(att)
         def_avoid = self.grid.avoid(dfd)
         self.hp_display = {att: att.hp, dfd: dfd.hp}
-        events, exp = combat.resolve(att, dfd, dist, att_avoid, def_avoid)
+        events, exp = combat.resolve(att, dfd, dist, att_avoid, def_avoid,
+                                     att_sup=supports.support_bonus(att, self.units),
+                                     def_sup=supports.support_bonus(dfd, self.units))
         self.combat_events = events
         self.combat_idx, self.event_t, self.event_spawned = 0, 0.0, False
         self.pending_exp = exp
@@ -867,9 +870,11 @@ class Game:
                         return
                     self.target = t
                     dist = manhattan((self.selected.x, self.selected.y), cell)
-                    self.fc = combat.forecast(self.selected, t, dist,
-                                              self.grid.avoid(self.selected),
-                                              self.grid.avoid(t))
+                    self.fc = combat.forecast(
+                        self.selected, t, dist,
+                        self.grid.avoid(self.selected), self.grid.avoid(t),
+                        att_sup=supports.support_bonus(self.selected, self.units),
+                        def_sup=supports.support_bonus(t, self.units))
                     self.state = 'FORECAST'
                     return
 
@@ -1116,6 +1121,8 @@ class Game:
                 ui.draw_hp_bar(surf, u, px, py)
             if u.boss:
                 ui.draw_boss_mark(surf, px, py)
+            if u.team == 'player' and supports.has_support(u, self.units):
+                ui.draw_support_mark(surf, px, py)  # 羁绊加成生效
             if (u.team == 'player' and self._danger_tiles
                     and (u.x, u.y) in self._danger_tiles):
                 ui.draw_danger_mark(surf, px, py)   # 处于敌方威胁中
