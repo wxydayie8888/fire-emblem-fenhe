@@ -51,6 +51,8 @@ class Game:
         self.permadeath = False       # 经典模式：阵亡永久退场
         self.fallen = set()           # 已永久阵亡的角色名（经典模式）
         self.gold = 0                 # 军资（击破/通关获得，章间商店消费）
+        self.snapshot_gold = 0        # 本章开局的军资/转职证（败北重试时回滚，防刷）
+        self.snapshot_seals = 0
         self.roster = [Unit(s['name'], s['cls'], 'player', (0, 0)) for s in PLAYER_ROSTER]
         self.snapshot = None
         self.units = []
@@ -218,6 +220,7 @@ class Game:
         else:
             self.roster = [Unit.from_dict(d) for d in sd['roster']]
             self.snapshot = copy.deepcopy(self.roster)
+            self.snapshot_gold, self.snapshot_seals = self.gold, self.seals
             self.begin_intro()
 
     def restore_battle(self, sd):
@@ -238,6 +241,8 @@ class Game:
             'camp_turns': self.camp_turns,
             'seals': self.seals,
             'gold': self.gold,
+            'snapshot_gold': self.snapshot_gold,
+            'snapshot_seals': self.snapshot_seals,
             'difficulty': self.difficulty,
             'mode': 'classic' if self.permadeath else 'casual',
             'fallen': sorted(self.fallen),
@@ -281,6 +286,8 @@ class Game:
         self.boss_quote_shown = sd['boss_quote_shown']
         self.seals = sd.get('seals', self.seals)
         self.gold = sd.get('gold', self.gold)
+        self.snapshot_gold = sd.get('snapshot_gold', self.gold)
+        self.snapshot_seals = sd.get('snapshot_seals', self.seals)
         self.difficulty = sd.get('difficulty', self.difficulty)
         if 'mode' in sd:
             self.permadeath = (sd['mode'] == 'classic')
@@ -369,6 +376,7 @@ class Game:
         ch = self.chapter
         if retry and self.snapshot is not None:
             self.roster = copy.deepcopy(self.snapshot)
+            self.gold, self.seals = self.snapshot_gold, self.snapshot_seals   # 回滚军资防刷
         elif not retry:
             for j in ch['join']:
                 # 幂等：读档进来的 roster 可能已含本章同伴；经典模式：阵亡者不再归队
@@ -391,6 +399,7 @@ class Game:
             u.refresh_weapon()         # 武器耐久修复满
         if not retry:
             self.snapshot = copy.deepcopy(self.roster)
+            self.snapshot_gold, self.snapshot_seals = self.gold, self.seals
             self.autosave()
         diff_boost = DIFFICULTY[self.difficulty]['boost']
         enemies = []
@@ -469,6 +478,27 @@ class Game:
 
     def show_banner(self, text, color):
         self.banner = {'text': text, 'color': color, 't': 0.0}
+
+    def hint_text(self):
+        """顶部即时提示：当前状态下「该做什么」。"""
+        s = self.state
+        if s == 'IDLE':
+            if self.threat_unit is not None:
+                return '查看敌人威胁范围　·　右键关闭'
+            if not [u for u in self.alive('player') if not u.acted]:
+                return '全员已行动　·　按 E 结束回合'
+            return '点击我方单位行动　·　点空地呼出菜单　·　E 结束回合'
+        if s == 'MOVE':
+            return '点击蓝色格移动　·　红格为攻击范围　·　右键取消'
+        if s == 'MENU':
+            return '选择行动'
+        if s == 'TARGET':
+            return '选择治疗对象' if self.target_mode == 'heal' else '选择攻击目标'
+        if s == 'FORECAST':
+            return '查看预测，回车 / 左键 确认攻击　·　右键取消'
+        if s == 'ENEMY_TURN':
+            return '敌方行动中……（按住空格快进）'
+        return ''
 
     def fortress_heal(self, team):
         for u in self.alive(team):
@@ -907,8 +937,10 @@ class Game:
         if not combat.can_attack(unit):
             return []
         lo, hi = unit.weapon_range
+        vis = self.visible_set()                 # 迷雾中的敌人不可作为攻击目标
         return [u for u in self.alive('enemy')
-                if lo <= manhattan((unit.x, unit.y), (u.x, u.y)) <= hi]
+                if lo <= manhattan((unit.x, unit.y), (u.x, u.y)) <= hi
+                and not self.enemy_hidden(u, vis)]
 
     def heal_targets_from(self, unit):
         """治疗目标：相邻的受伤友军（仅 can_heal 的单位）。"""
@@ -2106,6 +2138,7 @@ class Game:
             if self.permadeath:
                 tag += '·经典'
             ui.draw_objective(surf, self.turn, obj, tag=tag)
+        ui.draw_action_hint(surf, self.hint_text())   # 顶部即时操作提示
 
         if self.state == 'MENU':
             px = (self.selected.x + 1) * CELL + 4

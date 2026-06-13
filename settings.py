@@ -589,7 +589,7 @@ SEED_STAT_GAIN = {'pow': 2, 'skl': 2, 'spd': 2, 'dfn': 2, 'hp': 4}
 
 # --- 武器耐久（章内）：每次攻击 -1，归零后「破损」直到本章结束（下章自动修复）---
 WEAPON_USES = {'sword': 40, 'lance': 38, 'axe': 35, 'bow': 30, 'magic': 28,
-               'light': 26, 'breath': 99, 'staff': 25}
+               'light': 26, 'breath': 99}      # 杖不计耐久（治疗走独立路径）
 BROKEN_DMG_PENALTY = 3        # 破损：伤害 -3
 BROKEN_HIT_PENALTY = 25       # 破损：命中 -25
 

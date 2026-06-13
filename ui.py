@@ -136,6 +136,21 @@ def draw_help(surf):
           13, (SCREEN_W // 2, SCREEN_H - 16), (110, 110, 125), center=True)
 
 
+def draw_action_hint(surf, text):
+    """顶部居中的「下一步做什么」即时提示（金色描边药丸）。"""
+    if not text:
+        return
+    chip = font(17).render(text, True, (255, 240, 188))
+    pad = 11
+    w, h = chip.get_width() + pad * 2, chip.get_height() + pad
+    x = (SCREEN_W - w) // 2
+    box = pygame.Surface((w, h), pygame.SRCALPHA)
+    box.fill((18, 22, 38, 205))
+    surf.blit(box, (x, 6))
+    pygame.draw.rect(surf, COL_GOLD, (x, 6, w, h), 1, border_radius=7)
+    surf.blit(chip, (x + pad, 6 + pad // 2))
+
+
 def draw_danger_mark(surf, px, py):
     """受威胁我方单位头顶红色感叹号。"""
     pygame.draw.circle(surf, (200, 50, 50), (px + 8, py + 8), 7)
