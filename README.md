@@ -31,12 +31,17 @@ python3 -m venv .venv
 .venv/bin/python main.py
 ```
 
-**打包独立 App**（macOS，免 Python 环境双击即玩）：
+**打包 Mac 分享包**（免 Python 环境，可发给别人玩）：
 
 ```bash
 .venv/bin/pip install pyinstaller
-./tools/build_app.sh        # 产出 dist/芬河战记.app
+./tools/build_mac.sh        # 产出 dist/芬河战记-mac.dmg（带图标，拖入应用程序即装）
 ```
+
+收到 `.dmg` 的人：双击挂载 → 把「芬河战记」拖进「应用程序」→ 首次【右键→打开】
+（未购苹果开发者签名，需右键打开绕过 Gatekeeper，仅首次）。
+Windows 版需在 Windows 环境用 PyInstaller 构建（PyInstaller 不能跨平台编译），
+建议用 GitHub Actions 的 windows runner 自动出包。
 
 ## 三幕十章战役
 
