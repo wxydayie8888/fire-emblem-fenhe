@@ -554,6 +554,32 @@ CRIT_MULT = 3         # 必杀三倍
 POTION_HEAL = 12      # 伤药回复量
 POTION_USES = 3       # 每章伤药数量
 
+# --- 军资经济 + 章间商店 ---
+GOLD_PER_KILL = 40            # 每击破一个敌人
+GOLD_PER_CLEAR = 150          # 每通关一章
+# 商店商品：kind=seal 加转职证；kind=seed 选角色永久+2属性；kind=potion 全员本周目伤药上限+1
+SHOP_ITEMS = [
+    {'key': 'seal',  'name': '转职证',     'cost': 500, 'kind': 'seal',
+     'desc': '达到 Lv10 的角色可转职为高级职。'},
+    {'key': 'pow',   'name': '力量之种',   'cost': 320, 'kind': 'seed', 'stat': 'pow',
+     'desc': '选一名角色，力量永久 +2。'},
+    {'key': 'skl',   'name': '技巧之种',   'cost': 300, 'kind': 'seed', 'stat': 'skl',
+     'desc': '选一名角色，技巧永久 +2。'},
+    {'key': 'spd',   'name': '速度之种',   'cost': 340, 'kind': 'seed', 'stat': 'spd',
+     'desc': '选一名角色，速度永久 +2。'},
+    {'key': 'dfn',   'name': '守护之种',   'cost': 320, 'kind': 'seed', 'stat': 'dfn',
+     'desc': '选一名角色，防御永久 +2。'},
+    {'key': 'hp',    'name': '体力之种',   'cost': 280, 'kind': 'seed', 'stat': 'hp',
+     'desc': '选一名角色，HP 上限永久 +4。'},
+]
+SEED_STAT_GAIN = {'pow': 2, 'skl': 2, 'spd': 2, 'dfn': 2, 'hp': 4}
+
+# --- 武器耐久（章内）：每次攻击 -1，归零后「破损」直到本章结束（下章自动修复）---
+WEAPON_USES = {'sword': 40, 'lance': 38, 'axe': 35, 'bow': 30, 'magic': 28,
+               'light': 26, 'breath': 99, 'staff': 25}
+BROKEN_DMG_PENALTY = 3        # 破损：伤害 -3
+BROKEN_HIT_PENALTY = 25       # 破损：命中 -25
+
 STAT_NAMES = {'hp': 'HP', 'pow': '力量', 'skl': '技巧', 'spd': '速度', 'dfn': '防御'}
 
 # 难度：困难模式给「每个」敌人（含增援）叠加的数值强化（在章节/精英强化之上再加）。

@@ -3,7 +3,8 @@ import random
 
 from settings import (WEAPONS, WEAPON_BEATS, TRIANGLE_DMG, TRIANGLE_HIT,
                       DOUBLE_SPD_GAP, CRIT_MULT, EXP_HIT, EXP_KILL, EXP_BOSS_KILL,
-                      CLASS_TRAITS, EFFECTIVE_WEAPON, CLASS_EFFECTIVE, EFFECTIVE_MULT)
+                      CLASS_TRAITS, EFFECTIVE_WEAPON, CLASS_EFFECTIVE, EFFECTIVE_MULT,
+                      BROKEN_DMG_PENALTY, BROKEN_HIT_PENALTY)
 
 
 def triangle(att_w, def_w):
@@ -38,6 +39,8 @@ def calc_damage(att, dfd, sup_dmg=0):
     atk = att.pow + WEAPONS[att.weapon]['might'] + d + _skill(att).get('pow', 0) + sup_dmg
     if is_effective(att, dfd):
         atk *= EFFECTIVE_MULT
+    if getattr(att, 'broken', False):
+        atk -= BROKEN_DMG_PENALTY               # 武器破损：伤害下降
     raw = atk - dfd.dfn - _skill(dfd).get('dfn', 0)
     return max(0, raw)
 
@@ -50,6 +53,8 @@ def calc_hit(att, dfd, def_avoid_bonus, sup_hit=0, sup_avoid=0):
            + _skill(att).get('hit', 0) + sup_hit
            - (dfd.spd * 2 + def_avoid_bonus
               + _skill(dfd).get('avoid', 0) + sup_avoid))
+    if getattr(att, 'broken', False):
+        hit -= BROKEN_HIT_PENALTY               # 武器破损：命中下降
     return max(0, min(100, hit))
 
 

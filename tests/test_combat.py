@@ -191,3 +191,17 @@ def test_non_flier_not_effective():
 def test_forecast_carries_effective():
     fc = combat.forecast(archer(), pegasus(), dist=2, att_avoid=0, def_avoid=0)
     assert fc['att']['effective'] is True
+
+
+# ---------- 武器耐久（破损惩罚）----------
+
+def test_broken_weapon_penalty():
+    a, f = lord(), fighter(dfn=0, spd=20)       # 高速避免命中被钳到 100
+    a.uses = 5
+    full = combat.calc_damage(a, f)
+    full_hit = combat.calc_hit(a, f, 0)
+    assert full_hit < 100                        # 未触顶，便于验证 -25
+    a.uses = 0
+    assert a.broken
+    assert combat.calc_damage(a, f) == full - 3          # 伤害-3
+    assert combat.calc_hit(a, f, 0) == full_hit - 25      # 命中-25

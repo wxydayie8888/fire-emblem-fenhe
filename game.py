@@ -21,8 +21,9 @@ import supports
 import ui
 from ai import plan_action
 from grid import Grid, manhattan, move_range
-from settings import (CELL, CHAPTERS, DIFFICULTY, GRID_H, GRID_W, MODES,
-                      PLAYER_ROSTER, POTION_USES)
+from settings import (CELL, CHAPTERS, DIFFICULTY, GOLD_PER_CLEAR, GOLD_PER_KILL,
+                      GRID_H, GRID_W, MODES, PLAYER_ROSTER, POTION_USES,
+                      SEED_STAT_GAIN, SHOP_ITEMS)
 from unit import Unit
 
 EVENT_DUR = 0.55      # 每次攻击动作时长(秒)
@@ -47,6 +48,7 @@ class Game:
         self.difficulty = 'normal'    # normal / hard
         self.permadeath = False       # 经典模式：阵亡永久退场
         self.fallen = set()           # 已永久阵亡的角色名（经典模式）
+        self.gold = 0                 # 军资（击破/通关获得，章间商店消费）
         self.roster = [Unit(s['name'], s['cls'], 'player', (0, 0)) for s in PLAYER_ROSTER]
         self.snapshot = None
         self.units = []
@@ -75,6 +77,8 @@ class Game:
         self.newgame_diff, self.newgame_mode, self.newgame_sel = 0, 0, 0
         self.newgame_rects = []
         self.roster_sel, self.roster_rects = 0, []
+        self.shop_sel, self.shop_rects = 0, []
+        self.shop_pending = None               # 待选目标的「之种」商品
         self.save_slot = 1                     # 上次手动存档使用的槽
         self.state = 'TITLE'
 
@@ -194,6 +198,7 @@ class Game:
         self.chapter_idx = sd['chapter_idx']
         self.camp_turns = sd.get('camp_turns', 0)
         self.seals = sd.get('seals', 0)
+        self.gold = sd.get('gold', 0)
         self.difficulty = sd.get('difficulty', 'normal')
         self.permadeath = (sd.get('mode', 'casual') == 'classic')
         self.fallen = set(sd.get('fallen', []))
@@ -221,6 +226,7 @@ class Game:
             'turn': self.turn,
             'camp_turns': self.camp_turns,
             'seals': self.seals,
+            'gold': self.gold,
             'difficulty': self.difficulty,
             'mode': 'classic' if self.permadeath else 'casual',
             'fallen': sorted(self.fallen),
@@ -245,7 +251,7 @@ class Game:
             return
         idx = self.chapter_idx if chapter_idx is None else chapter_idx
         save.save_game(idx, [u.to_dict() for u in self.roster], save.AUTO_SLOT,
-                       camp_turns=self.camp_turns, seals=self.seals,
+                       camp_turns=self.camp_turns, seals=self.seals, gold=self.gold,
                        mode='classic' if self.permadeath else 'casual',
                        difficulty=self.difficulty, fallen=self.fallen)
         self.refresh_slots()
@@ -261,6 +267,7 @@ class Game:
         self.camp_turns = sd.get('camp_turns', self.camp_turns)
         self.boss_quote_shown = sd['boss_quote_shown']
         self.seals = sd.get('seals', self.seals)
+        self.gold = sd.get('gold', self.gold)
         self.difficulty = sd.get('difficulty', self.difficulty)
         if 'mode' in sd:
             self.permadeath = (sd['mode'] == 'classic')
@@ -359,6 +366,7 @@ class Game:
             u.hp = u.max_hp            # 每章开始幸存者满血（经典模式阵亡者已不在队中）
             u.acted = False
             u.potions = POTION_USES
+            u.refresh_weapon()         # 武器耐久修复满
         if not retry:
             self.snapshot = copy.deepcopy(self.roster)
             self.autosave()
@@ -395,6 +403,7 @@ class Game:
         sfx.play('victory')
         self.camp_turns += self.turn
         self.seals += 1               # 每章通关获得 1 枚转职证
+        self.gold += GOLD_PER_CLEAR    # 通关军资
         if self.permadeath:           # 经典模式：本章阵亡者永久退场
             for u in self.roster:
                 if not u.alive:
@@ -556,6 +565,49 @@ class Game:
         self.roster_sel = 0
         self.menu_return = return_state
         self.state = 'ROSTER'
+
+    def open_shop(self):
+        """章间商店（INTRO 按 S 进入）。"""
+        sfx.play('select')
+        self.shop_sel = 0
+        self.shop_pending = None
+        self.state = 'SHOP'
+
+    def buy_item(self, item):
+        """购买商品。之种类需先选角色（选后才扣费）。"""
+        if self.gold < item['cost']:
+            sfx.play('cancel')
+            return
+        if item['kind'] == 'seal':
+            self.gold -= item['cost']
+            self.seals += 1
+            sfx.play('confirm')
+            self.autosave()
+        elif item['kind'] == 'seed':
+            if not self.alive('player') and not self.roster:
+                return
+            self.shop_pending = item
+            self.roster_sel = 0
+            sfx.play('select')
+            self.state = 'SHOP_PICK'
+
+    def apply_seed(self, unit):
+        """对所选角色施用「之种」永久强化，扣费并存档。"""
+        item = self.shop_pending
+        if item is None:
+            self.state = 'SHOP'
+            return
+        stat, gain = item['stat'], SEED_STAT_GAIN[item['stat']]
+        if stat == 'hp':
+            unit.max_hp += gain
+            unit.hp = min(unit.max_hp, unit.hp + gain)
+        else:
+            setattr(unit, stat, getattr(unit, stat) + gain)
+        self.gold -= item['cost']
+        self.shop_pending = None
+        sfx.play('levelup')
+        self.autosave()
+        self.state = 'SHOP'
 
     def try_end_turn(self, from_menu=False):
         """结束我方回合。E 键在有未行动单位且开启确认时需二次按键；菜单选择直接结束。"""
@@ -750,6 +802,14 @@ class Game:
         enemy_dead = len([u for u in dead if u.team == 'enemy'])
         if enemy_dead:
             self.records = records.add_kills(enemy_dead)
+            self.gold += enemy_dead * GOLD_PER_KILL        # 击破获得军资
+        # 武器耐久：每次出手 -1（攻方），归零后破损（本章命中/伤害下降）
+        for ev in self.combat_events:
+            a = ev['actor']
+            if hasattr(a, 'uses') and a.uses > 0:
+                a.uses -= 1
+                if a.uses == 0 and a.alive and a.team == 'player':
+                    self.add_float('武器破损', (a.x, a.y), ui.COL_GOLD)
         # 被打的驻守敌人被激活
         for ev in self.combat_events:
             t = ev['target']
@@ -852,6 +912,14 @@ class Game:
                 for i, r in enumerate(self.newgame_rects):
                     if r.collidepoint(event.pos):
                         self.newgame_sel = 0 if i < 2 else (1 if i < 4 else 2)
+            elif self.state == 'SHOP':
+                for i, r in enumerate(self.shop_rects):
+                    if r.collidepoint(event.pos):
+                        self.shop_sel = i
+            elif self.state == 'SHOP_PICK':
+                for i, r in enumerate(self.roster_rects):
+                    if r.collidepoint(event.pos):
+                        self.roster_sel = i
             return
 
         click = event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
@@ -1059,11 +1127,50 @@ class Game:
                 self.advance_dialogue(skip=True)
             return
         if self.state == 'INTRO':
-            if click or key in (pygame.K_RETURN, pygame.K_SPACE):
+            if key == pygame.K_s:
+                self.open_shop()                  # 章前商店
+            elif click or key in (pygame.K_RETURN, pygame.K_SPACE):
                 sfx.play('confirm')
                 self.setup_chapter()
                 pre = story.CHAPTER_DIALOGUE[self.chapter_idx]['pre']
                 self.start_dialogue(pre, self.enter_battle)
+            return
+        if self.state == 'SHOP':
+            rclick = event.type == pygame.MOUSEBUTTONDOWN and event.button == 3
+            n = len(SHOP_ITEMS)
+            if key == pygame.K_ESCAPE or rclick:
+                sfx.play('cancel')
+                self.state = 'INTRO'
+            elif key in (pygame.K_UP, pygame.K_DOWN):
+                self.shop_sel = (self.shop_sel + (1 if key == pygame.K_DOWN else -1)) % n
+                sfx.play('select')
+            elif key in (pygame.K_RETURN, pygame.K_SPACE):
+                self.buy_item(SHOP_ITEMS[self.shop_sel])
+            elif click:
+                for i, r in enumerate(self.shop_rects):
+                    if r.collidepoint(event.pos):
+                        self.shop_sel = i
+                        self.buy_item(SHOP_ITEMS[i])
+                        return
+            return
+        if self.state == 'SHOP_PICK':
+            party = self.roster
+            rclick = event.type == pygame.MOUSEBUTTONDOWN and event.button == 3
+            if key == pygame.K_ESCAPE or rclick or not party:
+                sfx.play('cancel')
+                self.shop_pending = None
+                self.state = 'SHOP'
+            elif key in (pygame.K_UP, pygame.K_DOWN):
+                self.roster_sel = (self.roster_sel + (1 if key == pygame.K_DOWN else -1)) % len(party)
+                sfx.play('select')
+            elif key in (pygame.K_RETURN, pygame.K_SPACE):
+                self.apply_seed(party[self.roster_sel])
+            elif click:
+                for i, r in enumerate(self.roster_rects):
+                    if r.collidepoint(event.pos):
+                        self.roster_sel = i
+                        self.apply_seed(party[i])
+                        return
             return
         if self.state == 'CLEAR':
             if click or key in (pygame.K_RETURN, pygame.K_SPACE):
@@ -1311,7 +1418,7 @@ class Game:
             self.dialogue_t += dt      # 逐字显示计时
         if self.state in ('TITLE', 'INTRO', 'COMPLETE', 'PROLOGUE', 'DIALOGUE',
                           'CODEX', 'DETAIL', 'GUIDE', 'CONVO', 'NEWGAME', 'OPTIONS',
-                          'SAVE_MENU', 'LOAD_MENU', 'ROSTER'):
+                          'SAVE_MENU', 'LOAD_MENU', 'ROSTER', 'SHOP', 'SHOP_PICK'):
             return
         if (self.ff or config.get('skip_anim')) and self.state in ('ENEMY_TURN', 'COMBAT'):
             dt *= 3                    # 空格按住 / 选项「跳过战斗动画」：快进
@@ -1469,7 +1576,18 @@ class Game:
             wf = int(self.time * 1.6) % 2
             self._draw_terrain(surf, rows, wf)
             pygame.draw.rect(surf, (16, 14, 24), (0, GRID_H * CELL, GRID_W * CELL, 100))
-            ui.draw_intro(surf, self.chapter_idx, self.chapter, backdrop=True)
+            ui.draw_intro(surf, self.chapter_idx, self.chapter, backdrop=True,
+                          gold=self.gold)
+            return
+        if self.state == 'SHOP':
+            self.shop_rects = ui.draw_shop(surf, SHOP_ITEMS, self.gold,
+                                           self.shop_sel, self.seals)
+            return
+        if self.state == 'SHOP_PICK':
+            surf.fill((16, 14, 24))
+            item = self.shop_pending or {}
+            ui.draw_text_center(surf, f'选择强化对象 — {item.get("name", "")}', 22, 18)
+            self.roster_rects = ui.draw_roster(surf, self.roster, self.roster_sel)
             return
         if self.state == 'COMPLETE':
             ui.draw_complete(surf, self.roster, story.FATES)
@@ -1613,6 +1731,7 @@ class Game:
             remain = max(0, self.chapter['hold_turns'] - self.turn + 1)
             obj = f'{obj}（剩 {remain} 回合）'
         obj += f'　·　敌 {len(self.alive("enemy"))}'
+        obj += f'　·　军资 {self.gold}'
         if self.seals > 0:
             obj += f'　·　转职证 ×{self.seals}'
         tag = DIFFICULTY[self.difficulty]['label']

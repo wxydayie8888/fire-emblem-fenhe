@@ -2,7 +2,7 @@
 import random
 
 from settings import (CLASSES, WEAPONS, EXP_LEVEL, POTION_HEAL, POTION_USES,
-                      PROMOTIONS, PROMOTE_LEVEL)
+                      PROMOTIONS, PROMOTE_LEVEL, WEAPON_USES)
 
 STATS = ('hp', 'pow', 'skl', 'spd', 'dfn')
 # 存档只保留可变属性；mov/weapon/growth/mounted 由职业表派生
@@ -27,10 +27,20 @@ class Unit:
         self.level, self.exp = 1, 0
         self.potions = POTION_USES   # 伤药数量
         self.acted = False           # 本回合是否已行动
+        self.uses = WEAPON_USES.get(self.weapon, 40)   # 武器耐久（章内）
 
     @property
     def alive(self):
         return self.hp > 0
+
+    @property
+    def broken(self):
+        """武器是否破损（耐久归零）：命中/伤害下降，直到本章结束自动修复。"""
+        return self.uses <= 0
+
+    def refresh_weapon(self):
+        """章首把武器耐久修复满。"""
+        self.uses = WEAPON_USES.get(self.weapon, 40)
 
     @property
     def cls_name(self):
@@ -69,6 +79,7 @@ class Unit:
         self.fly = c.get('fly', False)
         self.growth = c['growth']
         self.hp = self.max_hp
+        self.refresh_weapon()        # 新武器满耐久
         return True
 
     def gain_exp(self, amount, rng=random.random):
@@ -124,7 +135,7 @@ class Unit:
 
     # 战斗中挂起存档：完整还原战局所需的全部可变状态
     BATTLE_FIELDS = SAVE_FIELDS + ('team', 'x', 'y', 'hp', 'acted', 'potions',
-                                   'boss', 'ai')
+                                   'boss', 'ai', 'uses')
 
     def to_battle_dict(self):
         return {f: getattr(self, f) for f in self.BATTLE_FIELDS}
@@ -138,6 +149,7 @@ class Unit:
         u.hp = d['hp']
         u.acted = d['acted']
         u.potions = d['potions']
+        u.uses = d.get('uses', WEAPON_USES.get(u.weapon, 40))
         return u
 
     def use_potion(self):

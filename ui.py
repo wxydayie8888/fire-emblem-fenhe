@@ -330,7 +330,7 @@ def draw_guide(surf, pages, idx):
     return tabs
 
 
-def draw_intro(surf, idx, ch, backdrop=False):
+def draw_intro(surf, idx, ch, backdrop=False, gold=None):
     if backdrop:
         veil = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
         veil.fill((16, 14, 24, 216))
@@ -344,6 +344,9 @@ def draw_intro(surf, idx, ch, backdrop=False):
         _text(surf, line, 18, (SCREEN_W // 2, 250 + i * 36), COL_DIM, center=True)
     _text(surf, f'目标：{ch["objective"]}', 20, (SCREEN_W // 2, 395), COL_GOLD, center=True)
     _text(surf, '点击进入战斗', 18, (SCREEN_W // 2, 470), COL_TEXT, center=True)
+    if gold is not None:
+        _text(surf, f'军资 {gold}　·　按 S 进入商店', 16,
+              (SCREEN_W // 2, 506), (230, 200, 120), center=True)
 
 
 def draw_clear(surf, idx, title, turns):
@@ -495,6 +498,37 @@ def draw_slot_menu(surf, title, slots, summaries, sel, mode):
     verb = '保存' if mode == 'save' else '读取'
     _text(surf, f'↑↓ 选择 · 回车/点击 {verb} · ESC 返回', 14,
           (SCREEN_W // 2, SCREEN_H - 40), COL_DIM, center=True)
+    return rects
+
+
+def draw_text_center(surf, s, size, y, color=COL_GOLD):
+    _text(surf, s, size, (SCREEN_W // 2, y), color, center=True)
+
+
+def draw_shop(surf, items, gold, sel, seals):
+    """章间商店。返回各商品行 rect。"""
+    surf.fill((16, 14, 24))
+    _text(surf, '军 资 商 店', 34, (SCREEN_W // 2, 50), COL_GOLD, center=True)
+    _text(surf, f'军资 {gold}   ｜   转职证 ×{seals}', 18,
+          (SCREEN_W // 2, 92), COL_TEXT, center=True)
+    rects = []
+    y = 134
+    for i, it in enumerate(items):
+        r = pygame.Rect(SCREEN_W // 2 - 270, y, 540, 56)
+        active = i == sel
+        afford = gold >= it['cost']
+        pygame.draw.rect(surf, COL_PANEL_LIGHT if active else COL_PANEL, r, border_radius=8)
+        pygame.draw.rect(surf, COL_GOLD if active else COL_BORDER, r, 2, border_radius=8)
+        name_col = COL_TEXT if afford else (110, 110, 120)
+        _text(surf, it['name'], 20, (r.x + 18, r.y + 8), name_col)
+        _text(surf, it['desc'], 13, (r.x + 18, r.y + 33), COL_DIM)
+        price = font(18).render(f'{it["cost"]} G', True,
+                                COL_GOLD if afford else (150, 90, 90))
+        surf.blit(price, (r.right - 20 - price.get_width(), r.y + 18))
+        rects.append(r)
+        y += 66
+    _text(surf, '↑↓ 选择 · 回车/点击 购买 · ESC 返回', 14,
+          (SCREEN_W // 2, SCREEN_H - 36), COL_DIM, center=True)
     return rects
 
 

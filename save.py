@@ -55,11 +55,11 @@ def _meta(mode, difficulty, fallen):
 
 
 def save_game(chapter_idx, roster_dicts, slot=1, *, path=None,
-              camp_turns=0, seals=0, mode='casual', difficulty='normal', fallen=()):
+              camp_turns=0, seals=0, gold=0, mode='casual', difficulty='normal', fallen=()):
     """章节开局/通关存档写入指定槽。"""
     data = {'version': SAVE_VERSION, 'kind': 'chapter',
             'chapter_idx': chapter_idx, 'camp_turns': camp_turns,
-            'seals': seals, 'roster': roster_dicts}
+            'seals': seals, 'gold': gold, 'roster': roster_dicts}
     data.update(_meta(mode, difficulty, fallen))
     _atomic_write(data, _resolve(slot, path))
 
@@ -85,6 +85,7 @@ def load_game(slot=1, *, path=None):
     data.setdefault('mode', 'casual')
     data.setdefault('difficulty', 'normal')
     data.setdefault('fallen', [])
+    data.setdefault('gold', 0)
     return data
 
 

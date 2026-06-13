@@ -167,3 +167,9 @@ def test_migrate_legacy(slots_dir):
     assert save.has_save(1)                           # 迁移到槽1
     save.migrate_legacy()                             # 幂等：槽1已有则不覆盖
     assert save.load_game(1)['chapter_idx'] == 2
+
+
+def test_gold_roundtrip(slots_dir):
+    save.save_game(2, roster_dicts(5), 1, gold=777)
+    assert save.load_game(1)['gold'] == 777
+    assert save.load_game(1, path=slots_dir / 'nope.json') is None or True  # 不崩
