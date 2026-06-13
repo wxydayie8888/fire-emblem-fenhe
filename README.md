@@ -19,7 +19,8 @@
 [▶ 观看《芬河战记·前情提要》（24s, 1080p）](docs/media/芬河战记-前情提要.mp4)
 
 由 LibTV（Seedance 2.0）将五张 AI 场景原画逐镜活化（麦浪、火焰、龙眼睁开、黎明行军、
-英雄列阵），ffmpeg 交叉溶解拼接、中文字幕逐幕浮现、终幕金色标题渐显，带氛围音效。
+英雄列阵），ffmpeg 交叉溶解拼接、中文字幕逐幕浮现、终幕金色标题渐显，
+配 Mureka V8 生成的史诗管弦乐与氛围音效。
 
 ## 安装与启动
 
@@ -82,6 +83,7 @@ python3 -m venv .venv
 | D | 开关全体敌人危险范围叠加（受威胁的我方头顶红色 ! ） |
 | Z | **时光回溯**：撤销上一次行动（每战 10 次，败北画面也可用） |
 | 空格（按住） | 战斗/敌方回合 3 倍速快进 |
+| M | 开关背景音乐 |
 | E | 结束我方回合（尚有未行动单位时需按两次确认） |
 | I | 查看悬停/选中单位的详情页（属性 + 生平） |
 | R | 败北后重试本章；通关画面返回标题 |
@@ -124,6 +126,10 @@ python3 -m venv .venv
 **章节氛围**：风雪驿道飘雪、迷雾森林落叶、灰烬祭坛飞灰、龙巢余烬上涌，
 配合每章专属色调；章节过场以本章地图为暗化背景。
 
+**配乐**：游戏内由 `music.py` 程序化合成的火纹风格管弦乐（numpy 多声部，零外部音频）——
+标题恢弘、地图曲随三幕情绪切换（希望／紧张／黑暗）、敌方回合低沉、胜利号角、败北悲歌，
+按战局状态无缝交叉淡入；开场动画用 AI 生成的史诗管弦乐（Mureka V8）。按 M 静音。
+
 **时光回溯**（参考 Engage 龙之时水晶 / TBW 回退的行业标配设计，
 调研报告见 `docs/research/`）：每战 10 次，Z 键或地图菜单触发，
 精确回到上一次我方行动前——包括撤销整个敌方回合，败北瞬间也能反悔。
@@ -131,16 +137,17 @@ python3 -m venv .venv
 ## 开发
 
 ```bash
-.venv/bin/python -m pytest tests/ -v     # 66 个纯逻辑单元测试
+.venv/bin/python -m pytest tests/ -v     # 71 个纯逻辑单元测试
 .venv/bin/python assets.py               # 生成精灵映射预览图
 .venv/bin/python sfx.py                  # 试听全部程序化音效
+.venv/bin/python music.py                # 试听全部程序化配乐（每曲 8 秒）
 .venv/bin/python tools/balance_sim.py 40 # 平衡性模拟（贪心bot打全战役统计胜率）
 ```
 
 平衡基准（贪心 bot、不重试，40 局）逐章胜率：75/93/64/89/100/75/100/93/86/50。
 终章对 bot 最严酷属有意为之；真人玩家有战术与败北重试，实际体验更宽松。改数值后请重跑模拟。
 
-代码结构：`settings/unit/combat/grid/ai/save/story/records/paths` 为零 pygame 依赖的纯逻辑层
+代码结构：`settings/unit/combat/grid/ai/save/story/records/paths/music` 为零 pygame 依赖的纯逻辑层
 （pytest 覆盖），`assets/ui/game/sfx/main` 为渲染交互层。十章地图与全部数值集中在
 `settings.py`，剧情文案与角色生平集中在 `story.py`，改平衡、加关卡、改台词只需改数据。
 设计文档见 `docs/superpowers/specs/`。
@@ -151,4 +158,5 @@ python3 -m venv .venv
   （作者 DragonDePlatino，调色板 DawnBringer，CC-BY 4.0），详见 `CREDITS.txt`
 - 角色立绘：LibTV（Midjourney Niji 7）AI 生成（`assets/portraits/`）；
   另有 `tools/gen_portraits.py` 可重新生成原创像素风版本作为替代
-- 音效：运行时 numpy 程序化合成，无外部音频文件
+- 音效与游戏内配乐：运行时 numpy 程序化合成（`sfx.py` / `music.py`），无外部音频文件
+- 开场动画配乐：LibTV（Mureka V8）AI 生成（`assets/cinema/bgm_epic.mp3`）
