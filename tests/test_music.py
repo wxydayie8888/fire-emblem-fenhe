@@ -39,15 +39,17 @@ def test_track_for_mapping():
     assert music.track_for('DIALOGUE') == 'story'
     assert music.track_for('END') == 'defeat'
     assert music.track_for('CLEAR') == 'victory'
-    # 章节情绪分幕
-    assert music.track_for('IDLE', 0) == 'map_hope'    # 第1幕
-    assert music.track_for('IDLE', 2) == 'map_hope'
-    assert music.track_for('IDLE', 4) == 'map_tense'   # 第2幕
-    assert music.track_for('IDLE', 6) == 'map_tense'
-    assert music.track_for('IDLE', 8) == 'map_dark'    # 第3幕
+    # 章节分区主题（每 2 章换一首，共 5 个）
+    assert music.track_for('IDLE', 0) == 'map_hope'
+    assert music.track_for('IDLE', 2) == 'map_valor'
+    assert music.track_for('IDLE', 4) == 'map_tense'
+    assert music.track_for('IDLE', 6) == 'map_storm'
+    assert music.track_for('IDLE', 8) == 'map_dark'
     assert music.track_for('IDLE', 9) == 'map_dark'
-    # 敌方回合
-    assert music.track_for('IDLE', 0, enemy_phase=True) == 'enemy'
+    # 敌方回合：按分区的压迫变体
+    assert music.track_for('IDLE', 0, enemy_phase=True) == 'enemy_light'
+    assert music.track_for('IDLE', 5, enemy_phase=True) == 'enemy_mid'
+    assert music.track_for('IDLE', 9, enemy_phase=True) == 'enemy_dark'
 
 
 def test_graceful_without_audio():
