@@ -10,6 +10,7 @@ import pygame
 
 import assets
 import combat
+import guide
 import music
 import records
 import save
@@ -57,6 +58,7 @@ class Game:
         self.title_rects = []
         self.codex_sel, self.codex_rects = 0, []
         self.detail_unit, self.detail_return = None, 'IDLE'
+        self.guide_page, self.guide_tabs = 0, []
         self.state = 'TITLE'
 
     def _clear_battle_state(self):
@@ -640,7 +642,29 @@ class Game:
                         sfx.play('confirm')
                         self.codex_sel = 0
                         self.state = 'CODEX'
+                    elif i == 3:
+                        sfx.play('confirm')
+                        self.guide_page = 0
+                        self.state = 'GUIDE'
                     return
+            return
+        if self.state == 'GUIDE':
+            rclick = event.type == pygame.MOUSEBUTTONDOWN and event.button == 3
+            n = len(guide.pages())
+            if key == pygame.K_ESCAPE or rclick:
+                sfx.play('cancel')
+                self.state = 'TITLE'
+            elif key == pygame.K_LEFT:
+                self.guide_page = (self.guide_page - 1) % n
+                sfx.play('select')
+            elif key == pygame.K_RIGHT:
+                self.guide_page = (self.guide_page + 1) % n
+                sfx.play('select')
+            elif click:
+                for i, r in enumerate(self.guide_tabs):
+                    if r.collidepoint(event.pos):
+                        self.guide_page = i
+                        sfx.play('select')
             return
         if self.state == 'CINEMA':
             if click or key in (pygame.K_RETURN, pygame.K_SPACE):
@@ -929,7 +953,7 @@ class Game:
                 self.cinema_next()
             return
         if self.state in ('TITLE', 'INTRO', 'COMPLETE', 'PROLOGUE', 'DIALOGUE',
-                          'CODEX', 'DETAIL'):
+                          'CODEX', 'DETAIL', 'GUIDE'):
             return
         if self.ff and self.state in ('ENEMY_TURN', 'COMBAT'):
             dt *= 3                    # 空格按住：战斗/敌方回合快进
@@ -1021,7 +1045,8 @@ class Game:
         if self.state == 'TITLE':
             items = [('新游戏', True),
                      ('继续游戏', self.save_data is not None),
-                     ('人物图鉴', True)]
+                     ('人物图鉴', True),
+                     ('攻略看板', True)]
             summary = None
             if self.save_data is not None:
                 sd = self.save_data
@@ -1075,6 +1100,9 @@ class Game:
             entries = [(n, story.BIOS[n]) for n in story.CODEX_ORDER]
             pic_fn = lambda name, cls: assets.portrait(name) or assets.unit_sprite(cls)
             self.codex_rects = ui.draw_codex(surf, entries, self.codex_sel, pic_fn)
+            return
+        if self.state == 'GUIDE':
+            self.guide_tabs = ui.draw_guide(surf, guide.pages(), self.guide_page)
             return
 
         water_frame = int(self.time * 1.6) % 2

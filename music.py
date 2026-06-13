@@ -377,7 +377,7 @@ director = MusicDirector()
 
 # 游戏状态 -> 曲目 key 的映射
 def track_for(state, chapter_idx=0, enemy_phase=False):
-    if state in ('TITLE', 'CODEX'):
+    if state in ('TITLE', 'CODEX', 'GUIDE'):
         return 'title'
     if state in ('CINEMA',):
         return None               # 开场动画用 AI 交响乐（game 单独处理）

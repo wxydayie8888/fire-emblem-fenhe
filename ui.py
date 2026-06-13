@@ -280,6 +280,53 @@ def draw_records_line(surf, text):
     _text(surf, text, 14, (SCREEN_W // 2, SCREEN_H - 44), COL_DIM, center=True)
 
 
+def draw_guide(surf, pages, idx):
+    """攻略看板：顶部页签 + 当前页内容。返回页签 rect 列表。"""
+    surf.fill((16, 14, 24))
+    _text(surf, '攻 略 看 板', 30, (SCREEN_W // 2, 24), COL_GOLD, center=True)
+    # 页签栏
+    tabs = []
+    tw = (SCREEN_W - 80) // len(pages)
+    for i, (title, _) in enumerate(pages):
+        r = pygame.Rect(40 + i * tw, 64, tw - 8, 38)
+        active = i == idx
+        pygame.draw.rect(surf, COL_PANEL_LIGHT if active else COL_PANEL, r, border_radius=8)
+        pygame.draw.rect(surf, COL_GOLD if active else COL_BORDER, r, 2 if active else 1,
+                         border_radius=8)
+        _text(surf, title, 16, r.center, COL_TEXT if active else COL_DIM, center=True)
+        tabs.append(r)
+    # 内容（双列布局，过长自动换列）
+    paras = pages[idx][1]
+    col_x = [60, SCREEN_W // 2 + 30]
+    x, y, col = col_x[0], 124, 0
+
+    def newcol():
+        nonlocal x, y, col
+        col += 1
+        x, y = col_x[min(col, 1)], 124
+    for para in paras:
+        if y > SCREEN_H - 60 and col == 0:
+            newcol()
+        kind = para[0]
+        if kind == 'h':
+            y += 6
+            _text(surf, para[1], 19, (x, y), COL_GOLD)
+            y += 34
+        elif kind == 'p':
+            _text(surf, para[1], 16, (x, y), COL_TEXT)
+            y += 28
+        elif kind == 'kv':
+            left, right = para[1]
+            _text(surf, left, 16, (x, y), COL_TEXT)
+            _text(surf, right, 15, (x + 220, y), COL_DIM)
+            y += 28
+        elif kind == 'gap':
+            y += 14
+    _text(surf, '← → 或点击页签切换 · ESC / 右键 返回', 14,
+          (SCREEN_W // 2, SCREEN_H - 22), COL_DIM, center=True)
+    return tabs
+
+
 def draw_intro(surf, idx, ch, backdrop=False):
     if backdrop:
         veil = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
