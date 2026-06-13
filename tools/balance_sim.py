@@ -16,17 +16,20 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import combat as C
+import supports
 from ai import plan_action
 from grid import Grid, manhattan, move_range
 from settings import CHAPTERS, PLAYER_ROSTER
 from unit import Unit
 
 
-def fight(att, dfd, grid):
+def fight(att, dfd, grid, units):
     dist = manhattan((att.x, att.y), (dfd.x, dfd.y))
     _, exp = C.resolve(att, dfd, dist,
                        grid.terrain(att.x, att.y)['avoid'],
-                       grid.terrain(dfd.x, dfd.y)['avoid'])
+                       grid.terrain(dfd.x, dfd.y)['avoid'],
+                       att_sup=supports.support_bonus(att, units),
+                       def_sup=supports.support_bonus(dfd, units))
     for u, amount in exp.items():
         if u.alive and u.team == 'player':
             u.gain_exp(amount)
@@ -106,6 +109,9 @@ def sim_chapter(idx, roster, seed, max_turns=30):
     for j in ch['join']:
         if all(u.name != j['name'] for u in roster):
             roster.append(Unit(j['name'], j['cls'], 'player', j['pos']))
+    for u in roster:                       # 达 Lv10 即转职（模拟玩家用转职证）
+        if u.can_promote():
+            u.promote()
     positions = list(ch['players']) + [j['pos'] for j in ch['join']]
     for u, pos in zip(roster, positions):
         u.x, u.y = pos
@@ -144,7 +150,7 @@ def sim_chapter(idx, roster, seed, max_turns=30):
                               goal=goal if u is lord else None)
             if act[0] == 'attack':
                 u.x, u.y = act[1]
-                fight(u, act[2], grid)
+                fight(u, act[2], grid, units)
             elif act[0] == 'heal':
                 u.x, u.y = act[1]
                 amount = min(C.heal_amount(u), act[2].max_hp - act[2].hp)
@@ -172,7 +178,7 @@ def sim_chapter(idx, roster, seed, max_turns=30):
             act = plan_action(e, grid, units)
             e.x, e.y = act['move']
             if act['target'] is not None and act['target'].alive:
-                fight(e, act['target'], grid)
+                fight(e, act['target'], grid, units)
             if not lord.alive:
                 return None, '阵亡'
         heal_phase(enemies, grid)
