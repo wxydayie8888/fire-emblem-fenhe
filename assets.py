@@ -171,13 +171,37 @@ def _load_hd(sub, name):
     return None
 
 
+_vignette_cache = {}
+
+
+def _harmonize_terrain(surf):
+    """地图和谐化：轻微去饱和统一色调 + 柔和暗角，软化网格接缝。"""
+    try:
+        import numpy as np
+    except Exception:
+        return surf
+    n = surf.get_width()
+    arr = pygame.surfarray.array3d(surf).astype('float32')
+    lum = arr @ np.array([0.299, 0.587, 0.114], dtype='float32')
+    arr = arr * 0.86 + lum[..., None] * 0.14            # 去饱和 14%
+    if n not in _vignette_cache:
+        ax = np.linspace(-1, 1, n)
+        gx, gy = np.meshgrid(ax, ax, indexing='ij')
+        d = np.maximum(np.abs(gx), np.abs(gy))          # 方形距离：中心0→边缘1
+        _vignette_cache[n] = 1.0 - np.clip((d - 0.74) / 0.26, 0, 1) * 0.26
+    arr *= _vignette_cache[n][..., None]                # 外圈最多压暗 26%
+    arr = np.clip(arr, 0, 255).astype('uint8')
+    return pygame.surfarray.make_surface(arr).convert()
+
+
 def hd_terrain(ch):
-    """HD 地形图块（CELL×CELL）。缺失返回 None。"""
+    """HD 地形图块（CELL×CELL，已和谐化）。缺失返回 None。"""
     if ch not in _hd_terrain:
         name = TERRAIN_HD.get(ch)
         img = _load_hd('terrain', name) if name else None
         if img is not None:
             img = pygame.transform.smoothscale(img, (CELL, CELL))
+            img = _harmonize_terrain(img)
         _hd_terrain[ch] = img
     return _hd_terrain[ch]
 
