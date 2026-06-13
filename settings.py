@@ -289,6 +289,10 @@ CHAPTERS = [
         'map': MAP1,
         'players': [(2, 4), (1, 5), (1, 3), (2, 6)],
         'join': [],
+        'events': [
+            {'pos': (4, 0), 'kind': 'chest',   'reward': {'seal': 1}},
+            {'pos': (5, 9), 'kind': 'village', 'reward': {'gold': 150}},
+        ],
         'enemies': [
             {'name': '斧兵甲', 'cls': 'fighter',  'pos': (10, 4)},
             {'name': '斧兵乙', 'cls': 'fighter',  'pos': (9, 2), 'ai': 'guard'},
@@ -328,6 +332,15 @@ CHAPTERS = [
         'map': MAP3,
         'players': [(0, 3), (1, 4), (0, 5), (1, 2), (1, 6)],
         'join': [],
+        'events': [
+            {'pos': (2, 9), 'kind': 'village', 'reward': {'gold': 200}},
+        ],
+        'recruits': [
+            {'by': '罗伊', 'target': '侍卫',
+             'lines': [('侍卫', 'right', '我……本是被强征入伍。将军的暴行我早已看不下去。'),
+                       ('罗伊', 'left', '那就把剑指向真正该讨伐的人吧——与我们并肩。'),
+                       ('侍卫', 'right', '……承蒙不弃。这条命，交给芬河军了！')]},
+        ],
         'enemies': [
             {'name': '游兵甲', 'cls': 'fighter',  'pos': (5, 2)},
             {'name': '游兵乙', 'cls': 'e_myrm',   'pos': (6, 6)},

@@ -501,6 +501,30 @@ def draw_slot_menu(surf, title, slots, summaries, sel, mode):
     return rects
 
 
+def draw_village(surf, px, py):
+    """村庄图标（可访问）：小屋 + 旗。"""
+    cx = px + CELL // 2
+    pygame.draw.ellipse(surf, (20, 30, 15, 90), (px + 12, py + 50, 40, 10))  # 影
+    pygame.draw.rect(surf, (165, 120, 78), (px + 16, py + 30, 32, 24))
+    pygame.draw.rect(surf, (60, 44, 30), (px + 16, py + 30, 32, 24), 2)
+    pygame.draw.polygon(surf, (150, 64, 52), [(px + 9, py + 32), (cx, py + 13), (px + 55, py + 32)])
+    pygame.draw.polygon(surf, (60, 30, 26), [(px + 9, py + 32), (cx, py + 13), (px + 55, py + 32)], 2)
+    pygame.draw.rect(surf, (92, 62, 40), (px + 28, py + 40, 12, 14))
+    pygame.draw.line(surf, (90, 90, 96), (px + 46, py + 16), (px + 46, py + 28), 2)
+    pygame.draw.polygon(surf, COL_GOLD, [(px + 46, py + 16), (px + 56, py + 19), (px + 46, py + 22)])
+
+
+def draw_chest(surf, px, py):
+    """宝箱图标（可开启）。"""
+    pygame.draw.ellipse(surf, (20, 30, 15, 90), (px + 14, py + 50, 36, 9))   # 影
+    pygame.draw.rect(surf, (122, 82, 46), (px + 16, py + 32, 32, 20))
+    pygame.draw.rect(surf, (95, 62, 35), (px + 14, py + 24, 36, 12))
+    pygame.draw.rect(surf, (60, 40, 24), (px + 14, py + 24, 36, 28), 2)
+    pygame.draw.rect(surf, (224, 192, 96), (px + 14, py + 34, 36, 4))
+    pygame.draw.rect(surf, (224, 192, 96), (px + 28, py + 30, 8, 14))
+    pygame.draw.rect(surf, (90, 60, 30), (px + 30, py + 36, 4, 4))
+
+
 def draw_text_center(surf, s, size, y, color=COL_GOLD):
     _text(surf, s, size, (SCREEN_W // 2, y), color, center=True)
 

@@ -28,9 +28,10 @@ ALL_SLOTS = (1, 2, 3, AUTO_SLOT)
 _DATA_DIR = user_data_dir()
 LEGACY_PATH = _DATA_DIR / 'save.json'        # 旧版单档
 
-# 合法角色名 = 基础队伍 + 各章 join
+# 合法角色名 = 基础队伍 + 各章 join + 各章可招降目标
 _LEGAL_NAMES = ({s['name'] for s in PLAYER_ROSTER}
-                | {j['name'] for ch in CHAPTERS for j in ch['join']})
+                | {j['name'] for ch in CHAPTERS for j in ch['join']}
+                | {r['target'] for ch in CHAPTERS for r in ch.get('recruits', [])})
 
 
 def slot_path(slot):

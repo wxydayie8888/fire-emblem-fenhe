@@ -115,6 +115,10 @@ class Game:
         self.slide = None      # {'unit','fr','to','t','next'}
         self.floats = []       # {'text','x','y','t','color'}
         self.banner = None     # {'text','color','t'}
+        if not hasattr(self, 'events'):
+            self.events = []           # 村庄/宝箱事件
+        if not hasattr(self, 'recruited'):
+            self.recruited = set()     # 已招降目标名
 
     @property
     def chapter(self):
@@ -231,6 +235,8 @@ class Game:
             'mode': 'classic' if self.permadeath else 'casual',
             'fallen': sorted(self.fallen),
             'boss_quote_shown': self.boss_quote_shown,
+            'events_done': [list(e['pos']) for e in self.events if e['done']],
+            'recruited': sorted(self.recruited),
             'reinforce_used': sorted(self.reinforce_used),
             'pending_reinforce': list(self.pending_reinforce),
             'roster_meta': [u.to_battle_dict() for u in self.roster],
@@ -274,6 +280,15 @@ class Game:
         self.fallen = set(sd.get('fallen', self.fallen))
         self.reinforce_used = set(sd['reinforce_used'])
         self.pending_reinforce = list(sd['pending_reinforce'])
+        # 重建本章事件并恢复已完成状态 + 已招降名单
+        self.events = [{'pos': tuple(e['pos']), 'kind': e['kind'],
+                        'reward': dict(e['reward']), 'done': False}
+                       for e in self.chapter.get('events', [])]
+        done = {tuple(p) for p in sd.get('events_done', [])}
+        for e in self.events:
+            if e['pos'] in done:
+                e['done'] = True
+        self.recruited = set(sd.get('recruited', []))
 
     def commit_undo(self):
         """把待定快照压入回溯栈（在行动不可逆地开始时调用）。"""
@@ -384,6 +399,10 @@ class Game:
         self.turn = 1
         self._clear_battle_state()
         self.boss_quote_shown = False
+        self.events = [{'pos': tuple(e['pos']), 'kind': e['kind'],
+                        'reward': dict(e['reward']), 'done': False}
+                       for e in ch.get('events', [])]
+        self.recruited = set()         # 已招降目标名
         self.pending_reinforce, self.reinforce_used = [], set()
         self.undo_stack, self.undo_left = [], 10    # 时光回溯：每战 10 次
         self.pending_undo = None
@@ -759,6 +778,24 @@ class Game:
                 if u is not unit and u.hp < u.max_hp
                 and manhattan((unit.x, unit.y), (u.x, u.y)) == 1]
 
+    def event_at(self, pos):
+        """该格上未完成的村庄/宝箱事件（无则 None）。"""
+        for e in self.events:
+            if not e['done'] and e['pos'] == pos:
+                return e
+        return None
+
+    def recruit_for(self, unit):
+        """unit 可对话招降的相邻敌人（按章节 recruits 配置）；无则 None。"""
+        for r in self.chapter.get('recruits', []):
+            if r['by'] != unit.name or r['target'] in self.recruited:
+                continue
+            for e in self.alive('enemy'):
+                if e.name == r['target'] and \
+                        manhattan((unit.x, unit.y), (e.x, e.y)) == 1:
+                    return r, e
+        return None
+
     def enter_menu(self):
         u = self.selected
         self.target_mode = 'attack'
@@ -769,12 +806,63 @@ class Game:
             self.menu_items.append(('攻击', bool(self.targets)))
         if u.can_heal():
             self.menu_items.append(('治疗', bool(heals)))
+        rec = self.recruit_for(u)
+        if rec is not None:
+            self.menu_items.append(('对话', True))
+        ev = self.event_at((u.x, u.y))
+        if ev is not None:
+            self.menu_items.append(('开启' if ev['kind'] == 'chest' else '访问', True))
         if u.can_promote() and self.seals > 0:
             self.menu_items.append(('转职', True))
         self.menu_items += [('用药', u.potions > 0 and u.hp < u.max_hp),
                             ('待机', True)]
         self.menu_sel = 0
         self.state = 'MENU'
+
+    def do_event(self, unit):
+        """访问村庄 / 开启宝箱：发放奖励，消耗事件与本回合行动。"""
+        ev = self.event_at((unit.x, unit.y))
+        if ev is None:
+            self.finish_unit()
+            return
+        self.commit_undo()
+        ev['done'] = True
+        r = ev['reward']
+        msg = []
+        if 'gold' in r:
+            self.gold += r['gold']
+            msg.append(f'军资 +{r["gold"]}')
+        if 'seal' in r:
+            self.seals += r['seal']
+            msg.append(f'转职证 +{r["seal"]}')
+        sfx.play('heal')
+        verb = '宝箱' if ev['kind'] == 'chest' else '村庄'
+        self.add_float('  '.join(msg) or verb, (unit.x, unit.y), ui.COL_GOLD)
+        self.show_banner(f'{verb}：{"  ".join(msg)}', ui.COL_GOLD)
+        self.finish_unit()
+
+    def do_recruit(self, unit):
+        """对话招降相邻敌人：转为我方并入队，播台词，消耗本回合行动。"""
+        rec = self.recruit_for(unit)
+        if rec is None:
+            self.finish_unit()
+            return
+        r, enemy = rec
+        self.commit_undo()
+        self.recruited.add(enemy.name)
+        enemy.team = 'player'
+        enemy.acted = True
+        enemy.ai = 'aggro'
+        enemy.boss = False
+        if all(p.name != enemy.name for p in self.roster):
+            self.roster.append(enemy)      # 持久入队
+        sfx.play('confirm')
+        self.add_float('加入！', (enemy.x, enemy.y), ui.COL_PLAYER)
+
+        def after():
+            self.show_banner(f'{enemy.name} 加入了队伍！', ui.COL_PLAYER)
+            self.finish_unit()
+        self.start_dialogue(r.get('lines', []), after)
 
     def do_promote(self, unit):
         """执行转职：消耗转职证，切换高级职，闪光提示，消耗本回合行动。"""
@@ -1342,6 +1430,10 @@ class Game:
                         self.state = 'TARGET'
                     elif label == '转职':
                         self.do_promote(self.selected)
+                    elif label == '对话':
+                        self.do_recruit(self.selected)
+                    elif label in ('访问', '开启'):
+                        self.do_event(self.selected)
                     elif label == '用药':
                         self.commit_undo()
                         healed = self.selected.use_potion()
@@ -1672,6 +1764,15 @@ class Game:
         water_frame = int(self.time * 1.6) % 2
         rows = self.grid.rows
         self._draw_terrain(surf, rows, water_frame)
+        ev_vis = self.visible_set()             # 村庄/宝箱图标（迷雾外不画）
+        for e in self.events:
+            if e['done'] or (ev_vis is not None and e['pos'] not in ev_vis):
+                continue
+            ex, ey = e['pos']
+            if e['kind'] == 'chest':
+                ui.draw_chest(surf, ex * CELL, ey * CELL)
+            else:
+                ui.draw_village(surf, ex * CELL, ey * CELL)
 
         if self.threat_all and self.state in ('IDLE', 'MOVE'):
             self._danger_tiles = self.all_threat_tiles()
