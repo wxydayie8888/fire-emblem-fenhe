@@ -45,9 +45,9 @@ def calc_damage(att, dfd, sup_dmg=0):
     return max(0, raw)
 
 
-def calc_hit(att, dfd, def_avoid_bonus, sup_hit=0, sup_avoid=0):
-    """def_avoid_bonus: 守方地形回避；sup_hit/sup_avoid: 双方支援加成。
-    职业技：攻方命中、守方回避自动计入。"""
+def calc_hit(att, dfd, def_avoid_bonus, sup_hit=0, sup_avoid=0, weather=0):
+    """def_avoid_bonus: 守方地形回避；sup_hit/sup_avoid: 双方支援加成；
+    weather: 天气命中惩罚。职业技：攻方命中、守方回避自动计入。"""
     _, h = triangle(att.weapon, dfd.weapon)
     hit = (WEAPONS[att.weapon]['hit'] + att.skl * 2 + h
            + _skill(att).get('hit', 0) + sup_hit
@@ -55,6 +55,7 @@ def calc_hit(att, dfd, def_avoid_bonus, sup_hit=0, sup_avoid=0):
               + _skill(dfd).get('avoid', 0) + sup_avoid))
     if getattr(att, 'broken', False):
         hit -= BROKEN_HIT_PENALTY               # 武器破损：命中下降
+    hit -= weather                              # 天气：命中下降
     return max(0, min(100, hit))
 
 
@@ -87,18 +88,19 @@ def can_double(a, b):
 _ZERO = {'hit': 0, 'avoid': 0, 'crit': 0, 'dmg': 0}
 
 
-def forecast(att, dfd, dist, att_avoid, def_avoid, att_sup=None, def_sup=None):
+def forecast(att, dfd, dist, att_avoid, def_avoid, att_sup=None, def_sup=None,
+             weather=0):
     """战斗预测（不掷骰）。def 侧为 None 表示无法反击。att_sup/def_sup: 羁绊加成。"""
     a, d = att_sup or _ZERO, def_sup or _ZERO
     res = {'att': {'dmg': calc_damage(att, dfd, a['dmg']),
-                   'hit': calc_hit(att, dfd, def_avoid, a['hit'], d['avoid']),
+                   'hit': calc_hit(att, dfd, def_avoid, a['hit'], d['avoid'], weather),
                    'crit': calc_crit(att, a['crit']),
                    'count': 2 if can_double(att, dfd) else 1,
                    'effective': is_effective(att, dfd)},
            'def': None}
     if in_range(dfd, dist):
         res['def'] = {'dmg': calc_damage(dfd, att, d['dmg']),
-                      'hit': calc_hit(dfd, att, att_avoid, d['hit'], a['avoid']),
+                      'hit': calc_hit(dfd, att, att_avoid, d['hit'], a['avoid'], weather),
                       'crit': calc_crit(dfd, d['crit']),
                       'count': 2 if can_double(dfd, att) else 1,
                       'effective': is_effective(dfd, att)}
@@ -106,7 +108,7 @@ def forecast(att, dfd, dist, att_avoid, def_avoid, att_sup=None, def_sup=None):
 
 
 def resolve(att, dfd, dist, att_avoid, def_avoid, rng=random.random,
-            att_sup=None, def_sup=None):
+            att_sup=None, def_sup=None, weather=0):
     """结算一场战斗（就地扣血）。
 
     返回 (events, exp_gains):
@@ -128,7 +130,7 @@ def resolve(att, dfd, dist, att_avoid, def_avoid, rng=random.random,
         if not (actor.alive and target.alive):
             continue
         so, st = sup[id(actor)], sup[id(target)]    # 攻方进攻加成 / 守方回避加成
-        hit = rng() * 100 < calc_hit(actor, target, t_avoid, so['hit'], st['avoid'])
+        hit = rng() * 100 < calc_hit(actor, target, t_avoid, so['hit'], st['avoid'], weather)
         crit = bool(hit) and rng() * 100 < calc_crit(actor, so['crit'])
         dmg = (calc_damage(actor, target, so['dmg']) * (CRIT_MULT if crit else 1)
                if hit else 0)

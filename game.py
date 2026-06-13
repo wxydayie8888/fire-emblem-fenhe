@@ -691,12 +691,48 @@ class Game:
         self.select(avail[idx])
 
     def all_threat_tiles(self):
-        """全部存活敌人的(移动∪攻击)范围并集。"""
+        """全部「可见」存活敌人的(移动∪攻击)范围并集（迷雾中隐藏敌人不计）。"""
+        vis = self.visible_set()
         tiles = set()
         for e in self.alive('enemy'):
+            if vis is not None and (e.x, e.y) not in vis:
+                continue
             t, fringe = self._range_tiles(e, allow_move=not e.boss)
             tiles |= set(t) | fringe
         return tiles
+
+    # ---------- 迷雾战争 / 天气 ----------
+
+    def fog_radius(self):
+        return self.chapter.get('ambient', {}).get('fog', 0)
+
+    def weather_hit(self):
+        from settings import WEATHER_HIT
+        w = self.chapter.get('ambient', {}).get('weather')
+        return WEATHER_HIT.get(w, 0)
+
+    def visible_set(self):
+        """迷雾下我方视野格的并集；无迷雾返回 None（全可见）。"""
+        r = self.fog_radius()
+        if not r:
+            return None
+        from settings import FOG_FLY_BONUS
+        vis = set()
+        for u in self.alive('player'):
+            ur = r + (FOG_FLY_BONUS if u.fly else 0)
+            for dx in range(-ur, ur + 1):
+                for dy in range(-ur, ur + 1):
+                    if abs(dx) + abs(dy) <= ur:
+                        p = (u.x + dx, u.y + dy)
+                        if self.grid.in_bounds(*p):
+                            vis.add(p)
+        return vis
+
+    def enemy_hidden(self, e, vis=None):
+        """敌人是否处于迷雾中（不可见）。"""
+        if vis is None:
+            vis = self.visible_set()
+        return vis is not None and (e.x, e.y) not in vis
 
     def toggle_threat(self, enemy):
         """待机时点击敌人 → 显示/关闭其威胁范围"""
@@ -782,7 +818,8 @@ class Game:
         self.hp_display = {att: att.hp, dfd: dfd.hp}
         events, exp = combat.resolve(att, dfd, dist, att_avoid, def_avoid,
                                      att_sup=supports.support_bonus(att, self.units),
-                                     def_sup=supports.support_bonus(dfd, self.units))
+                                     def_sup=supports.support_bonus(dfd, self.units),
+                                     weather=self.weather_hit())
         self.combat_events = events
         self.combat_idx, self.event_t, self.event_spawned = 0, 0.0, False
         self.pending_exp = exp
@@ -1325,11 +1362,11 @@ class Game:
             u = self.unit_at(cell)
             if u and u.team == 'player' and not u.acted:
                 self.select(u)
-            elif u and u.team == 'enemy':
+            elif u and u.team == 'enemy' and not self.enemy_hidden(u):
                 self.toggle_threat(u)
             else:
                 self.threat, self.threat_unit = set(), None
-                self.open_map_menu(cell)         # 空地 → 地图菜单
+                self.open_map_menu(cell)         # 空地（或迷雾敌人）→ 地图菜单
 
         elif self.state == 'MOVE':
             u = self.unit_at(cell)
@@ -1360,7 +1397,8 @@ class Game:
                         self.selected, t, dist,
                         self.grid.avoid(self.selected), self.grid.avoid(t),
                         att_sup=supports.support_bonus(self.selected, self.units),
-                        def_sup=supports.support_bonus(t, self.units))
+                        def_sup=supports.support_bonus(t, self.units),
+                        weather=self.weather_hit())
                     self.state = 'FORECAST'
                     return
 
@@ -1652,9 +1690,12 @@ class Game:
             ui.draw_cursor(surf, tuple(self.chapter['goal']), ui.COL_GOLD)   # 占领点闪烁
 
         unit_frame = int(self.time * 2.4)
+        fog_vis = self.visible_set()           # 迷雾可见格（None=无迷雾）
         for u in self.units:
             if not u.alive:
                 continue
+            if fog_vis is not None and u.team == 'enemy' and (u.x, u.y) not in fog_vis:
+                continue                        # 迷雾中的敌人不可见
             px, py = self.unit_draw_pos(u)
             ui.draw_team_ring(surf, u, px, py)
             sprite = assets.unit_sprite(u.cls, (unit_frame + (id(u) % 2)) % 2)
@@ -1683,6 +1724,13 @@ class Game:
             spr = assets.unit_sprite(u.cls, 0).copy()
             spr.set_alpha(max(0, int(200 * (1 - d['t']))))
             surf.blit(spr, (u.x * CELL, u.y * CELL))
+        if fog_vis is not None:            # 迷雾：未照亮格变暗
+            fog = pygame.Surface((CELL, CELL), pygame.SRCALPHA)
+            fog.fill((8, 12, 22, 168))
+            for fy in range(GRID_H):
+                for fx in range(GRID_W):
+                    if (fx, fy) not in fog_vis:
+                        surf.blit(fog, (fx * CELL, fy * CELL))
         if self.flash_t > 0:               # 必杀白闪
             veil = pygame.Surface((GRID_W * CELL, GRID_H * CELL), pygame.SRCALPHA)
             veil.fill((255, 255, 255, 80))
@@ -1734,6 +1782,11 @@ class Game:
         obj += f'　·　军资 {self.gold}'
         if self.seals > 0:
             obj += f'　·　转职证 ×{self.seals}'
+        wh = self.weather_hit()
+        if wh:
+            obj += f'　·　天气 命中-{wh}'
+        if self.fog_radius():
+            obj += '　·　迷雾'
         tag = DIFFICULTY[self.difficulty]['label']
         if self.permadeath:
             tag += '·经典'

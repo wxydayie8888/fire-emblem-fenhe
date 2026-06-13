@@ -300,7 +300,7 @@ CHAPTERS = [
     },
     {
         'title': '林间伏击',
-        'ambient': {'weather': 'leaves'},
+        'ambient': {'weather': 'leaves', 'fog': 4},   # 迷雾森林：视野 4
         'story': ['穿越迷雾森林时，妖术师莫尔甘设下伏击。',
                   '流浪剑士菲尔挺身相助，加入了队伍。',
                   '小心森林中埋伏的刀手！'],
@@ -470,7 +470,7 @@ CHAPTERS = [
     },
     {
         'title': '灰烬祭坛',
-        'ambient': {'weather': 'ash', 'tint': (120, 70, 160, 30)},
+        'ambient': {'weather': 'ash', 'tint': (120, 70, 160, 30), 'fog': 3},  # 烟尘：视野 3
         'enemy_boost': {'hp': 6, 'pow': 2, 'dfn': 1},
         'story': ['祭坛深处烛火如林，大祭司沃尔甘立于高台。',
                   '「莫尔甘的死，不过是仪式的一部分。」',
@@ -579,6 +579,11 @@ WEAPON_USES = {'sword': 40, 'lance': 38, 'axe': 35, 'bow': 30, 'magic': 28,
                'light': 26, 'breath': 99, 'staff': 25}
 BROKEN_DMG_PENALTY = 3        # 破损：伤害 -3
 BROKEN_HIT_PENALTY = 25       # 破损：命中 -25
+
+# --- 天气对战斗的影响（命中惩罚，双方都受影响）---
+WEATHER_HIT = {'snow': 10, 'ash': 12, 'rain': 10}   # 暴雪/烟尘/雨 命中下降
+# --- 迷雾战争：章节 ambient 设 'fog': 视野半径；飞行兵 +1 视野 ---
+FOG_FLY_BONUS = 1
 
 STAT_NAMES = {'hp': 'HP', 'pow': '力量', 'skl': '技巧', 'spd': '速度', 'dfn': '防御'}
 

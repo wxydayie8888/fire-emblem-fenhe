@@ -205,3 +205,13 @@ def test_broken_weapon_penalty():
     assert a.broken
     assert combat.calc_damage(a, f) == full - 3          # 伤害-3
     assert combat.calc_hit(a, f, 0) == full_hit - 25      # 命中-25
+
+
+# ---------- 天气命中 ----------
+
+def test_weather_hit_penalty():
+    a, f = lord(), fighter(spd=20)
+    base = combat.calc_hit(a, f, 0, weather=0)
+    assert combat.calc_hit(a, f, 0, weather=10) == max(0, base - 10)
+    fc = combat.forecast(a, f, 1, 0, 0, weather=10)
+    assert fc['att']['hit'] == max(0, base - 10)
