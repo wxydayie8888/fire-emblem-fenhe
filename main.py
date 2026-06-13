@@ -17,6 +17,10 @@ def main():
     sfx.init()
     import music
     music.init()
+    import config
+    config.load()                       # 玩家选项（音量/文字速度/…）
+    sfx.set_volume(config.sfx_frac())
+    music.set_volume(config.music_frac())
     from game import Game
     clock = pygame.time.Clock()
     game = Game()

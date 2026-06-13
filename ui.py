@@ -6,8 +6,9 @@ import math
 
 import pygame
 
-from settings import (CELL, CLASSES, GRID_H, GRID_W, INFO_H, SCREEN_H,
-                      SCREEN_W, STAT_NAMES, TERRAIN, WEAPONS)
+import config
+from settings import (CELL, CLASSES, DIFFICULTY, GRID_H, GRID_W, INFO_H, MODES,
+                      SCREEN_H, SCREEN_W, STAT_NAMES, TERRAIN, WEAPONS)
 
 # 颜色
 COL_PANEL = (28, 30, 44)
@@ -368,13 +369,167 @@ def draw_complete(surf, roster, fates):
     _text(surf, '感谢游玩！ 按 R 返回标题', 16, (SCREEN_W // 2, SCREEN_H - 30), COL_GOLD, center=True)
 
 
-def draw_objective(surf, turn, text):
-    chip = font(14).render(f'回合 {turn} ｜ {text}', True, COL_TEXT)
+def draw_objective(surf, turn, text, tag=None):
+    main = font(14).render(f'回合 {turn} ｜ {text}', True, COL_TEXT)
     pad = 6
-    box = pygame.Surface((chip.get_width() + pad * 2, chip.get_height() + pad), pygame.SRCALPHA)
+    tagsurf = font(13).render(tag, True, COL_GOLD) if tag else None
+    w = main.get_width() + pad * 2 + (tagsurf.get_width() + 12 if tagsurf else 0)
+    box = pygame.Surface((w, main.get_height() + pad), pygame.SRCALPHA)
     box.fill((16, 18, 30, 185))
     surf.blit(box, (4, 4))
-    surf.blit(chip, (4 + pad, 4 + pad // 2))
+    surf.blit(main, (4 + pad, 4 + pad // 2))
+    if tagsurf:
+        surf.blit(tagsurf, (4 + pad + main.get_width() + 12, 4 + pad // 2 + 1))
+
+
+def _keyart(surf, bg, veil_a=170):
+    """标题键视觉铺底 + 暗化遮罩（缺图则纯色）。"""
+    if bg is None:
+        surf.fill((16, 14, 24))
+        return
+    scale = max(SCREEN_W / bg.get_width(), SCREEN_H / bg.get_height())
+    scaled = pygame.transform.smoothscale(
+        bg, (int(bg.get_width() * scale), int(bg.get_height() * scale)))
+    surf.blit(scaled, ((SCREEN_W - scaled.get_width()) // 2,
+                       (SCREEN_H - scaled.get_height()) // 2))
+    veil = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+    veil.fill((10, 10, 18, veil_a))
+    surf.blit(veil, (0, 0))
+
+
+def draw_newgame(surf, diff_idx, mode_idx, sel, bg=None):
+    """新游戏：难度 + 模式选择。返回 rects[diff0,diff1,mode0,mode1,start]。"""
+    _keyart(surf, bg)
+    _text(surf, '新 的 征 程', 44, (SCREEN_W // 2, 96), COL_GOLD, center=True)
+    rects = []
+
+    def opt_row(label, keys, sel_idx, row_active, y, table):
+        _text(surf, label, 22, (SCREEN_W // 2 - 250, y + 12), COL_TEXT)
+        bx = SCREEN_W // 2 - 70
+        for j, k in enumerate(keys):
+            r = pygame.Rect(bx + j * 165, y, 150, 46)
+            chosen = (j == sel_idx)
+            pygame.draw.rect(surf, COL_PANEL_LIGHT if chosen else COL_PANEL, r, border_radius=8)
+            border = COL_GOLD if chosen else COL_BORDER
+            pygame.draw.rect(surf, border, r, 3 if (chosen and row_active) else 2, border_radius=8)
+            _text(surf, table[k]['label'], 20, r.center,
+                  COL_TEXT if chosen else COL_DIM, center=True)
+            rects.append(r)
+        _text(surf, table[keys[sel_idx]]['desc'], 15, (SCREEN_W // 2, y + 66),
+              COL_DIM, center=True)
+
+    opt_row('难度', ['normal', 'hard'], diff_idx, sel == 0, 200, DIFFICULTY)
+    opt_row('模式', ['casual', 'classic'], mode_idx, sel == 1, 326, MODES)
+    sr = pygame.Rect(SCREEN_W // 2 - 90, 452, 180, 54)
+    active = sel == 2
+    pygame.draw.rect(surf, COL_PANEL_LIGHT if active else COL_PANEL, sr, border_radius=10)
+    pygame.draw.rect(surf, COL_GOLD if active else COL_BORDER, sr, 3 if active else 2,
+                     border_radius=10)
+    _text(surf, '开 始 征 程', 24, sr.center, COL_GOLD if active else COL_TEXT, center=True)
+    rects.append(sr)
+    _text(surf, '↑↓ 切换项 · ←→/点击 选择 · 回车 确认 · ESC 返回', 14,
+          (SCREEN_W // 2, SCREEN_H - 40), COL_DIM, center=True)
+    return rects
+
+
+def draw_options(surf, sel):
+    """选项设置。返回各行 rect。值由 config 提供。"""
+    surf.fill((16, 14, 24))
+    _text(surf, '选 项 设 置', 34, (SCREEN_W // 2, 60), COL_GOLD, center=True)
+    rects = []
+    y = 140
+    for i, (key, label, _kind) in enumerate(config.SCHEMA):
+        r = pygame.Rect(SCREEN_W // 2 - 260, y, 520, 50)
+        active = i == sel
+        pygame.draw.rect(surf, COL_PANEL_LIGHT if active else COL_PANEL, r, border_radius=8)
+        pygame.draw.rect(surf, COL_GOLD if active else COL_BORDER, r, 2, border_radius=8)
+        _text(surf, label, 20, (r.x + 20, r.y + 14), COL_TEXT)
+        if _kind == 'vol':                       # 音量画成 10 格条形
+            v = config.get(key)
+            seg, gap = 18, 4
+            x0 = r.right - 20 - (seg + gap) * 10 + gap
+            for s in range(10):
+                col = (COL_GOLD if active else (120, 140, 110)) if s < v else (60, 62, 78)
+                pygame.draw.rect(surf, col, (x0 + s * (seg + gap), r.y + 18, seg, 14),
+                                 border_radius=2)
+        else:
+            val = font(18).render(config.display_value(key), True,
+                                  COL_GOLD if active else COL_DIM)
+            surf.blit(val, (r.right - 20 - val.get_width(), r.y + 15))
+        rects.append(r)
+        y += 64
+    _text(surf, '↑↓ 选择 · ←→ 调整（回车/点击 切换） · ESC 返回', 14,
+          (SCREEN_W // 2, SCREEN_H - 40), COL_DIM, center=True)
+    return rects
+
+
+def draw_slot_menu(surf, title, slots, summaries, sel, mode):
+    """存/读档槽列表。返回各槽 rect。"""
+    surf.fill((16, 14, 24))
+    _text(surf, title, 34, (SCREEN_W // 2, 54), COL_GOLD, center=True)
+    rects = []
+    y = 120
+    nums = '一二三四五六七八九十'
+    for i, (slot, s) in enumerate(zip(slots, summaries)):
+        r = pygame.Rect(SCREEN_W // 2 - 280, y, 560, 84)
+        active = i == sel
+        pygame.draw.rect(surf, COL_PANEL_LIGHT if active else COL_PANEL, r, border_radius=10)
+        pygame.draw.rect(surf, COL_GOLD if active else COL_BORDER, r, 2, border_radius=10)
+        name = '自动存档' if slot == 'auto' else f'存档 {slot}'
+        _text(surf, name, 22, (r.x + 22, r.y + 12), COL_GOLD if active else COL_TEXT)
+        if s['exists']:
+            num = nums[s['chapter_idx']]
+            kind = '战斗中' if s['kind'] == 'battle' else '章前'
+            _text(surf, f'第{num}章「{s["chapter_title"]}」· {kind}', 16,
+                  (r.x + 22, r.y + 46), COL_TEXT)
+            tail = f'{s["lead"]} Lv{s["lead_level"]} · {s["roster_n"]}人 · {DIFFICULTY[s["difficulty"]]["label"]}'
+            if s['mode'] == 'classic':
+                tail += '·经典'
+            _text(surf, tail, 14, (r.x + 300, r.y + 48), COL_DIM)
+        else:
+            _text(surf, '— 空 —', 16, (r.x + 22, r.y + 46), COL_DIM)
+        rects.append(r)
+        y += 98
+    verb = '保存' if mode == 'save' else '读取'
+    _text(surf, f'↑↓ 选择 · 回车/点击 {verb} · ESC 返回', 14,
+          (SCREEN_W // 2, SCREEN_H - 40), COL_DIM, center=True)
+    return rects
+
+
+def draw_roster(surf, party, sel):
+    """部队列表（战场上叠加面板）。返回各单位行 rect。"""
+    veil = pygame.Surface((SCREEN_W, GRID_H * CELL), pygame.SRCALPHA)
+    veil.fill((10, 10, 16, 150))
+    surf.blit(veil, (0, 0))
+    panel = pygame.Rect(SCREEN_W // 2 - 260, 26, 520, GRID_H * CELL - 52)
+    pygame.draw.rect(surf, COL_PANEL, panel, border_radius=12)
+    pygame.draw.rect(surf, COL_BORDER, panel, 2, border_radius=12)
+    _text(surf, '我 方 部 队', 24, (panel.centerx, panel.y + 24), COL_GOLD, center=True)
+    rects = []
+    y = panel.y + 58
+    for i, u in enumerate(party):
+        r = pygame.Rect(panel.x + 14, y, panel.w - 28, 54)
+        active = i == sel
+        if active:
+            pygame.draw.rect(surf, COL_PANEL_LIGHT, r, border_radius=8)
+        pygame.draw.rect(surf, COL_GOLD if active else (60, 64, 90), r,
+                         2 if active else 1, border_radius=8)
+        _text(surf, u.name, 19, (r.x + 14, r.y + 6), COL_TEXT)
+        _text(surf, f'{u.cls_name} Lv{u.level}', 13, (r.x + 14, r.y + 31), COL_DIM)
+        # HP 条（数值居中叠在条上）
+        bw, bx, by = 160, r.right - 184, r.y + 19
+        pygame.draw.rect(surf, (50, 22, 22), (bx, by, bw, 16), border_radius=3)
+        frac = u.hp / u.max_hp if u.max_hp else 0
+        pygame.draw.rect(surf, (90, 200, 110), (bx, by, int(bw * frac), 16), border_radius=3)
+        _text(surf, f'HP {u.hp}/{u.max_hp}', 13, (bx + bw // 2, by + 8),
+              COL_TEXT, center=True)
+        if u.acted:
+            _text(surf, '已动', 12, (r.x + 120, r.y + 8), COL_DIM)
+        rects.append(r)
+        y += 60
+    _text(surf, '↑↓ 选择 · 回车 选中/详情 · I 详情 · ESC 关闭', 13,
+          (panel.centerx, panel.bottom - 20), COL_DIM, center=True)
+    return rects
 
 
 def _fit(pic, size):

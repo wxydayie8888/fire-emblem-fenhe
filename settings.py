@@ -541,3 +541,17 @@ POTION_HEAL = 12      # 伤药回复量
 POTION_USES = 3       # 每章伤药数量
 
 STAT_NAMES = {'hp': 'HP', 'pow': '力量', 'skl': '技巧', 'spd': '速度', 'dfn': '防御'}
+
+# 难度：困难模式给「每个」敌人（含增援）叠加的数值强化（在章节/精英强化之上再加）。
+# boost 键须为 apply_boost 认可的 hp/pow/skl/spd/dfn。
+DIFFICULTY = {
+    'normal': {'label': '普通', 'desc': '标准数值，适合体验剧情。', 'boost': {}},
+    'hard':   {'label': '困难', 'desc': '敌人更强更耐打，考验战术。',
+               'boost': {'hp': 4, 'pow': 2, 'skl': 1, 'spd': 1, 'dfn': 1}},
+}
+
+# 模式：休闲（阵亡每章满血复活）/ 经典（阵亡永久退场，火纹传统）。
+MODES = {
+    'casual':  {'label': '休闲', 'desc': '角色阵亡下章满血归队，轻松通关。'},
+    'classic': {'label': '经典', 'desc': '角色一旦阵亡永久退场，火纹传统。'},
+}

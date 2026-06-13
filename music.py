@@ -15,6 +15,9 @@ SAMPLE_RATE = 44100
 CHANNELS = 2
 _enabled = False
 _user_on = True
+_music_vol = 1.0          # 全局音乐音量 0..1（由 config 设置）
+_BASE_VOL = 0.55          # 程序化曲目基准音量
+_CINEMA_VOL = 0.6         # 开场交响乐基准音量
 _sounds = {}
 
 # ---------- 乐理工具 ----------
@@ -305,7 +308,7 @@ def play_cinema():
             return
         director.update(None)               # 静默程序化通道
         pygame.mixer.music.load(str(path))
-        pygame.mixer.music.set_volume(0.6)
+        pygame.mixer.music.set_volume(_CINEMA_VOL * _music_vol)
         pygame.mixer.music.play(fade_ms=1200)
         _cinema_playing = True
     except Exception:
@@ -339,6 +342,21 @@ def is_on():
     return _user_on
 
 
+def set_volume(frac):
+    """设置音乐音量（0..1）。即时作用于正在播放的程序化通道与开场交响乐。"""
+    global _music_vol
+    _music_vol = max(0.0, min(1.0, frac))
+    try:
+        import pygame
+        for c in director._chan:
+            if c.get_busy():
+                c.set_volume(_BASE_VOL * _music_vol)
+        if _cinema_playing:
+            pygame.mixer.music.set_volume(_CINEMA_VOL * _music_vol)
+    except Exception:
+        pass
+
+
 class MusicDirector:
     """按曲目 key 在两个保留通道间交叉淡入；重复同 key 不打断。"""
     FADE = 900
@@ -359,7 +377,7 @@ class MusicDirector:
             self._chan[self._active].fadeout(self.FADE)
         if key is not None and key in _sounds:
             self._chan[nxt].play(_sounds[key], loops=-1, fade_ms=self.FADE)
-            self._chan[nxt].set_volume(0.55)
+            self._chan[nxt].set_volume(_BASE_VOL * _music_vol)
         self._active = nxt
 
     def stop(self):

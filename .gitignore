@@ -9,6 +9,8 @@ __pycache__/
 .pytest_cache/
 .venv/
 save.json
+save_*.json
+config.json
 .libtv/
 records.json
 build/

@@ -7,8 +7,15 @@ import math
 
 _sounds = {}
 _enabled = False
+_vol = 1.0          # 全局音效音量 0..1（由 config 设置）
 
 SAMPLE_RATE = 22050
+
+
+def set_volume(frac):
+    """设置音效音量（0..1）。即时生效，下次 play 应用。"""
+    global _vol
+    _vol = max(0.0, min(1.0, frac))
 
 
 def _tone(freqs, dur, vol=0.5, shape='square', fade=True):
@@ -82,9 +89,11 @@ def init():
 
 
 def play(name):
-    if _enabled and name in _sounds:
+    if _enabled and name in _sounds and _vol > 0:
         try:
-            _sounds[name].play()
+            snd = _sounds[name]
+            snd.set_volume(_vol)
+            snd.play()
         except Exception:
             pass
 

@@ -10,6 +10,7 @@ import pygame
 
 import assets
 import combat
+import config
 import guide
 import music
 import records
@@ -20,7 +21,8 @@ import supports
 import ui
 from ai import plan_action
 from grid import Grid, manhattan, move_range
-from settings import CELL, CHAPTERS, GRID_H, GRID_W, PLAYER_ROSTER, POTION_USES
+from settings import (CELL, CHAPTERS, DIFFICULTY, GRID_H, GRID_W, MODES,
+                      PLAYER_ROSTER, POTION_USES)
 from unit import Unit
 
 EVENT_DUR = 0.55      # 每次攻击动作时长(秒)
@@ -42,6 +44,9 @@ class Game:
         self.chapter_idx = 0
         self.camp_turns = 0            # 本周目累计回合（战绩用）
         self.seals = 0                # 转职证存量
+        self.difficulty = 'normal'    # normal / hard
+        self.permadeath = False       # 经典模式：阵亡永久退场
+        self.fallen = set()           # 已永久阵亡的角色名（经典模式）
         self.roster = [Unit(s['name'], s['cls'], 'player', (0, 0)) for s in PLAYER_ROSTER]
         self.snapshot = None
         self.units = []
@@ -53,14 +58,32 @@ class Game:
         self.dialogue_lines, self.dialogue_idx, self.after_dialogue = [], 0, None
         self.pages, self.page_idx, self.after_pages = [], 0, None
         self.boss_quote_shown = False
-        self.save_data = save.load_game()      # None = 无可用存档
+        self.dialogue_t = 0.0                  # 对话逐字显示计时
+        save.migrate_legacy()                  # 旧单档 → 槽1（幂等）
+        self.refresh_slots()                   # 各槽摘要 + 是否有可继续的档
         self.records = records.load()          # 战绩记忆
         self.title_rects = []
         self.codex_sel, self.codex_rects = 0, []
         self.detail_unit, self.detail_return = None, 'IDLE'
         self.guide_page, self.guide_tabs = 0, []
         self.convo_lines, self.convo_idx, self.convo_title = [], 0, ''
+        # 系统菜单/选项/存读档/部队列表 的临时选择态
+        self.menu_return = 'TITLE'
+        self.options_sel, self.options_return = 0, 'TITLE'
+        self.slot_sel, self.slotmenu_mode, self.slotmenu_return = 0, 'load', 'TITLE'
+        self.slot_rects, self.options_rects = [], []
+        self.newgame_diff, self.newgame_mode, self.newgame_sel = 0, 0, 0
+        self.newgame_rects = []
+        self.roster_sel, self.roster_rects = 0, []
+        self.save_slot = 1                     # 上次手动存档使用的槽
         self.state = 'TITLE'
+
+    def refresh_slots(self):
+        """重新读取各存档槽摘要，并刷新「是否有可继续的存档」。"""
+        self.slot_summaries = save.all_summaries()
+        self._latest_slot = save.latest_slot()
+        self.save_data = (save.load_game(self._latest_slot)
+                          if self._latest_slot is not None else None)
 
     def _clear_battle_state(self):
         self.hover = None
@@ -121,6 +144,22 @@ class Game:
         self.state = 'CONVO'
 
     def new_game(self):
+        """开新档：先进难度/模式选择界面。"""
+        sfx.play('confirm')
+        self.newgame_diff = ['normal', 'hard'].index(self.difficulty)
+        self.newgame_mode = 1 if self.permadeath else 0
+        self.newgame_sel = 0
+        self.state = 'NEWGAME'
+
+    def confirm_new_game(self):
+        """从 NEWGAME 选择界面确认：定难度/模式后进入战役。"""
+        self.difficulty = ['normal', 'hard'][self.newgame_diff]
+        self.permadeath = (self.newgame_mode == 1)
+        self.fallen = set()
+        sfx.play('confirm')
+        self.begin_campaign()
+
+    def begin_campaign(self):
         self.chapter_idx = 0
         if all(assets.cinema(s['img']) is not None for s in story.CINEMA_SCENES):
             self.cinema_idx, self.cinema_t = 0, 0.0
@@ -137,12 +176,27 @@ class Game:
             music.stop_cinema()
             self.begin_intro()
 
+    def load_slot(self, slot):
+        """从指定槽读档并恢复。无效则提示。"""
+        sd = save.load_game(slot)
+        if sd is None:
+            sfx.play('cancel')
+            return False
+        sfx.play('confirm')
+        self.save_data = sd
+        self.save_slot = slot if slot in save.MANUAL_SLOTS else self.save_slot
+        self.continue_game()
+        return True
+
     def continue_game(self):
         """从存档恢复：章节档进过场，战斗档直接回到战局。"""
         sd = self.save_data
         self.chapter_idx = sd['chapter_idx']
         self.camp_turns = sd.get('camp_turns', 0)
         self.seals = sd.get('seals', 0)
+        self.difficulty = sd.get('difficulty', 'normal')
+        self.permadeath = (sd.get('mode', 'casual') == 'classic')
+        self.fallen = set(sd.get('fallen', []))
         if sd.get('kind') == 'battle':
             self.restore_battle(sd)
         else:
@@ -167,6 +221,9 @@ class Game:
             'turn': self.turn,
             'camp_turns': self.camp_turns,
             'seals': self.seals,
+            'difficulty': self.difficulty,
+            'mode': 'classic' if self.permadeath else 'casual',
+            'fallen': sorted(self.fallen),
             'boss_quote_shown': self.boss_quote_shown,
             'reinforce_used': sorted(self.reinforce_used),
             'pending_reinforce': list(self.pending_reinforce),
@@ -176,9 +233,22 @@ class Game:
                         if u.team == 'enemy' and u.alive],
         }
 
-    def save_battle_state(self):
-        """战斗中挂起存档（地图菜单「保存进度」）。"""
-        save.save_battle(self._battle_payload())
+    def save_battle_state(self, slot=None):
+        """战斗中挂起存档到指定槽（默认上次手动槽）。"""
+        slot = slot if slot is not None else self.save_slot
+        save.save_battle(self._battle_payload(), slot)
+        self.refresh_slots()
+
+    def autosave(self, chapter_idx=None):
+        """章节进度写入「自动存档」槽（受选项开关控制）。"""
+        if not config.get('autosave'):
+            return
+        idx = self.chapter_idx if chapter_idx is None else chapter_idx
+        save.save_game(idx, [u.to_dict() for u in self.roster], save.AUTO_SLOT,
+                       camp_turns=self.camp_turns, seals=self.seals,
+                       mode='classic' if self.permadeath else 'casual',
+                       difficulty=self.difficulty, fallen=self.fallen)
+        self.refresh_slots()
 
     def _apply_payload(self, sd):
         """从快照恢复战局（读档与时光回溯共用）。"""
@@ -191,6 +261,10 @@ class Game:
         self.camp_turns = sd.get('camp_turns', self.camp_turns)
         self.boss_quote_shown = sd['boss_quote_shown']
         self.seals = sd.get('seals', self.seals)
+        self.difficulty = sd.get('difficulty', self.difficulty)
+        if 'mode' in sd:
+            self.permadeath = (sd['mode'] == 'classic')
+        self.fallen = set(sd.get('fallen', self.fallen))
         self.reinforce_used = set(sd['reinforce_used'])
         self.pending_reinforce = list(sd['pending_reinforce'])
 
@@ -223,16 +297,25 @@ class Game:
             return
         self.dialogue_lines = list(lines)
         self.dialogue_idx = 0
+        self.dialogue_t = 0.0
         self.after_dialogue = after
         self.state = 'DIALOGUE'
 
     def advance_dialogue(self, skip=False):
         sfx.play('select')
         self.dialogue_idx += 1
+        self.dialogue_t = 0.0
         if skip or self.dialogue_idx >= len(self.dialogue_lines):
             after = self.after_dialogue
             self.dialogue_lines, self.after_dialogue = [], None
             after()
+
+    def _dialogue_full(self):
+        """当前对话行是否已逐字显示完。"""
+        if self.dialogue_idx >= len(self.dialogue_lines):
+            return True
+        text = self.dialogue_lines[self.dialogue_idx][2]
+        return int(self.dialogue_t * config.text_cps()) >= len(text)
 
     def start_pages(self, pages, after):
         """播放黑底旁白页（序章/尾声），播完调用 after()。"""
@@ -259,25 +342,34 @@ class Game:
             self.roster = copy.deepcopy(self.snapshot)
         elif not retry:
             for j in ch['join']:
-                # 幂等：读档进来的 roster 可能已含本章同伴
-                if all(u.name != j['name'] for u in self.roster):
+                # 幂等：读档进来的 roster 可能已含本章同伴；经典模式：阵亡者不再归队
+                if (j['name'] not in self.fallen
+                        and all(u.name != j['name'] for u in self.roster)):
                     self.roster.append(Unit(j['name'], j['cls'], 'player', j['pos']))
-        positions = list(ch['players']) + [j['pos'] for j in ch['join']]
-        for u, pos in zip(self.roster, positions):
-            u.x, u.y = pos
-            u.hp = u.max_hp            # 休闲模式: 每章开始全员复活满血
+        # 布阵：本章新加入者各就其专属入场格，其余主力依次填入 players 格。
+        # 用名字映射而非按下标 zip——经典模式阵亡使队伍变短时也不会错位。
+        join_pos = {j['name']: tuple(j['pos']) for j in ch['join']}
+        army = [u for u in self.roster if u.name not in join_pos]
+        posmap = {u.name: pos for u, pos in zip(army, ch['players'])}
+        posmap.update({u.name: join_pos[u.name]
+                       for u in self.roster if u.name in join_pos})
+        for u in self.roster:
+            if u.name in posmap:
+                u.x, u.y = posmap[u.name]
+            u.hp = u.max_hp            # 每章开始幸存者满血（经典模式阵亡者已不在队中）
             u.acted = False
             u.potions = POTION_USES
         if not retry:
             self.snapshot = copy.deepcopy(self.roster)
-            save.save_game(self.chapter_idx, [u.to_dict() for u in self.roster],
-                           camp_turns=self.camp_turns, seals=self.seals)
+            self.autosave()
+        diff_boost = DIFFICULTY[self.difficulty]['boost']
         enemies = []
         for e in ch['enemies']:
             u = Unit(e['name'], e['cls'], 'enemy', e['pos'],
                      boss=e.get('boss', False), ai=e.get('ai', 'aggro'))
             u.apply_boost(ch.get('enemy_boost', {}))
             u.apply_boost(e.get('boost', {}))
+            u.apply_boost(diff_boost)               # 难度强化
             enemies.append(u)
         self.units = self.roster + enemies
         self.grid = Grid(ch['map'])
@@ -303,11 +395,16 @@ class Game:
         sfx.play('victory')
         self.camp_turns += self.turn
         self.seals += 1               # 每章通关获得 1 枚转职证
+        if self.permadeath:           # 经典模式：本章阵亡者永久退场
+            for u in self.roster:
+                if not u.alive:
+                    self.fallen.add(u.name)
+            self.roster = [u for u in self.roster if u.alive]
         if self.chapter_idx + 1 < len(CHAPTERS):
-            save.save_game(self.chapter_idx + 1, [u.to_dict() for u in self.roster],
-                           camp_turns=self.camp_turns, seals=self.seals)
+            self.autosave(self.chapter_idx + 1)
         else:
-            save.delete_save()         # 通关删档
+            save.delete_save(save.AUTO_SLOT)   # 通关删自动档（手动档保留）
+            self.refresh_slots()
         self.state = 'CLEAR'
 
     def next_chapter(self):
@@ -319,7 +416,8 @@ class Game:
             self.begin_intro()
 
     def _enter_complete(self):
-        save.delete_save()             # 幂等兜底
+        save.delete_save(save.AUTO_SLOT)   # 幂等兜底（手动档保留）
+        self.refresh_slots()
         self.records = records.add_clear(self.camp_turns)
         self.state = 'COMPLETE'
 
@@ -374,6 +472,7 @@ class Game:
                          boss=spec.get('boss', False), ai=spec.get('ai', 'aggro'))
                 u.apply_boost(self.chapter.get('enemy_boost', {}))
                 u.apply_boost(spec.get('boost', {}))
+                u.apply_boost(DIFFICULTY[self.difficulty]['boost'])   # 难度强化
                 self.units.append(u)
                 spawned = True
             else:
@@ -425,13 +524,108 @@ class Game:
         self.state = 'MOVE'
 
     def open_map_menu(self, cell):
-        """火纹式地图菜单：点击空地呼出。"""
+        """火纹式系统菜单：点击空地呼出（结束回合/存读档/选项/回溯）。"""
         sfx.play('select')
         self.map_menu_pos = cell
-        self.menu_items = [('结束回合', True), ('保存进度', True),
+        self.menu_items = [('结束回合', True), ('保存进度', True), ('读取进度', True),
+                           ('部队列表', True), ('选项', True),
                            (f'回溯×{self.undo_left}', self.can_undo())]
         self.menu_sel = 0
         self.state = 'MAP_MENU'
+
+    def open_slot_menu(self, mode, return_state):
+        """打开存/读档槽界面。mode: 'save'(仅手动槽) / 'load'(全部槽)。"""
+        sfx.play('select')
+        self.refresh_slots()
+        self.slotmenu_mode = mode
+        self.slotmenu_return = return_state
+        self.slot_sel = 0
+        self.state = 'SAVE_MENU' if mode == 'save' else 'LOAD_MENU'
+
+    def open_options(self, return_state):
+        sfx.play('select')
+        self.options_sel = 0
+        self.options_return = return_state
+        self.state = 'OPTIONS'
+
+    def open_roster(self, return_state='IDLE'):
+        """部队列表：速览我方单位，可跳转/选中。"""
+        if not self.alive('player'):
+            return
+        sfx.play('select')
+        self.roster_sel = 0
+        self.menu_return = return_state
+        self.state = 'ROSTER'
+
+    def try_end_turn(self, from_menu=False):
+        """结束我方回合。E 键在有未行动单位且开启确认时需二次按键；菜单选择直接结束。"""
+        unacted = [u for u in self.alive('player') if not u.acted]
+        if (not from_menu and unacted and config.get('confirm_end')
+                and self.end_confirm_t <= 0):
+            self.end_confirm_t = 2.0
+            self.show_banner('尚有未行动单位 · 再按 E 确认', ui.COL_GOLD)
+            return
+        self.end_confirm_t = 0.0
+        self.start_enemy_phase()
+
+    def slot_list(self):
+        """当前存/读档界面要显示的槽序列。"""
+        if self.slotmenu_mode == 'save':
+            return list(save.MANUAL_SLOTS)
+        return list(save.ALL_SLOTS)
+
+    def slot_choose(self, slot):
+        """在存/读档界面确认某个槽。"""
+        if self.slotmenu_mode == 'save':
+            self.save_slot = slot
+            self.save_battle_state(slot)
+            self.add_float('已保存', self.map_menu_pos, ui.COL_GOLD)
+            sfx.play('confirm')
+            self.state = 'IDLE'
+        else:
+            if self.slot_summaries.get(slot, {}).get('exists'):
+                self.load_slot(slot)           # 进入对应战局/过场
+            else:
+                sfx.play('cancel')
+
+    def _activate_map_menu(self, label):
+        """系统菜单项分发（鼠标点击与键盘回车共用）。"""
+        if label == '结束回合':
+            sfx.play('confirm')
+            self.state = 'IDLE'
+            self.try_end_turn(from_menu=True)
+        elif label == '保存进度':
+            self.open_slot_menu('save', 'IDLE')
+        elif label == '读取进度':
+            self.open_slot_menu('load', 'IDLE')
+        elif label == '部队列表':
+            self.open_roster('IDLE')
+        elif label == '选项':
+            self.open_options('IDLE')
+        elif label.startswith('回溯'):
+            sfx.play('confirm')
+            self.state = 'IDLE'
+            self.do_undo()
+
+    def _option_change(self, idx, direction):
+        """调整某选项并即时生效（音量直接作用于 sfx/music）。"""
+        key = config.SCHEMA[idx][0]
+        config.cycle(key, direction)
+        if key == 'music_vol':
+            music.set_volume(config.music_frac())
+        elif key == 'sfx_vol':
+            sfx.set_volume(config.sfx_frac())
+        sfx.play('select')
+
+    def _roster_jump(self, unit):
+        """部队列表确认：定位到该单位；未行动则直接选中，否则看详情。"""
+        self.hover = (unit.x, unit.y)
+        if not unit.acted:
+            self.state = 'IDLE'
+            self.select(unit)
+        else:
+            self.detail_unit, self.detail_return = unit, 'IDLE'
+            self.state = 'DETAIL'
 
     def select_next_unit(self):
         """Tab 循环选择下一个未行动单位。"""
@@ -550,6 +744,9 @@ class Game:
         for u in dead:
             self.dying.append({'unit': u, 't': 0.0})
             sfx.play('die')
+            if u.team == 'player':
+                tag = f'{u.name} 阵亡' if self.permadeath else f'{u.name} 倒下'
+                self.add_float(tag, (u.x, u.y), ui.COL_ENEMY)
         enemy_dead = len([u for u in dead if u.team == 'enemy'])
         if enemy_dead:
             self.records = records.add_kills(enemy_dead)
@@ -639,6 +836,22 @@ class Game:
                 for i, r in enumerate(self.menu_rects):
                     if r.collidepoint(event.pos):
                         self.menu_sel = i
+            elif self.state == 'OPTIONS':
+                for i, r in enumerate(self.options_rects):
+                    if r.collidepoint(event.pos):
+                        self.options_sel = i
+            elif self.state in ('SAVE_MENU', 'LOAD_MENU'):
+                for i, r in enumerate(self.slot_rects):
+                    if r.collidepoint(event.pos):
+                        self.slot_sel = i
+            elif self.state == 'ROSTER':
+                for i, r in enumerate(self.roster_rects):
+                    if r.collidepoint(event.pos):
+                        self.roster_sel = i
+            elif self.state == 'NEWGAME':
+                for i, r in enumerate(self.newgame_rects):
+                    if r.collidepoint(event.pos):
+                        self.newgame_sel = 0 if i < 2 else (1 if i < 4 else 2)
             return
 
         click = event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
@@ -647,27 +860,128 @@ class Game:
         # --- 流程画面 ---
         if self.state == 'TITLE':
             if key in (pygame.K_RETURN, pygame.K_SPACE):
-                sfx.play('confirm')
                 self.new_game()
             elif click:
                 for i, r in enumerate(self.title_rects):
                     if not r.collidepoint(event.pos):
                         continue
                     if i == 0:
-                        sfx.play('confirm')
                         self.new_game()
                     elif i == 1 and self.save_data is not None:
-                        sfx.play('confirm')
-                        self.continue_game()
-                    elif i == 2:
+                        self.load_slot(self._latest_slot)
+                    elif i == 2 and any(s['exists'] for s in self.slot_summaries.values()):
+                        self.open_slot_menu('load', 'TITLE')
+                    elif i == 3:
+                        self.open_options('TITLE')
+                    elif i == 4:
                         sfx.play('confirm')
                         self.codex_sel = 0
                         self.state = 'CODEX'
-                    elif i == 3:
+                    elif i == 5:
                         sfx.play('confirm')
                         self.guide_page = 0
                         self.state = 'GUIDE'
                     return
+            return
+        if self.state == 'NEWGAME':
+            rclick = event.type == pygame.MOUSEBUTTONDOWN and event.button == 3
+            if key == pygame.K_ESCAPE or rclick:
+                sfx.play('cancel')
+                self.state = 'TITLE'
+            elif key in (pygame.K_UP, pygame.K_DOWN):
+                self.newgame_sel = (self.newgame_sel + (1 if key == pygame.K_DOWN else -1)) % 3
+                sfx.play('select')
+            elif key in (pygame.K_LEFT, pygame.K_RIGHT):
+                if self.newgame_sel == 0:
+                    self.newgame_diff ^= 1
+                elif self.newgame_sel == 1:
+                    self.newgame_mode ^= 1
+                sfx.play('select')
+            elif key in (pygame.K_RETURN, pygame.K_SPACE):
+                if self.newgame_sel == 2:
+                    self.confirm_new_game()
+                elif self.newgame_sel == 0:
+                    self.newgame_diff ^= 1
+                    sfx.play('select')
+                else:
+                    self.newgame_mode ^= 1
+                    sfx.play('select')
+            elif click:
+                for i, r in enumerate(self.newgame_rects):
+                    if not r.collidepoint(event.pos):
+                        continue
+                    if i in (0, 1):
+                        self.newgame_diff = i
+                    elif i in (2, 3):
+                        self.newgame_mode = i - 2
+                    else:
+                        self.confirm_new_game()
+                        return
+                    sfx.play('select')
+                    return
+            return
+        if self.state == 'OPTIONS':
+            rclick = event.type == pygame.MOUSEBUTTONDOWN and event.button == 3
+            n = len(config.SCHEMA)
+            if key == pygame.K_ESCAPE or rclick:
+                sfx.play('cancel')
+                self.state = self.options_return
+            elif key in (pygame.K_UP, pygame.K_DOWN):
+                self.options_sel = (self.options_sel + (1 if key == pygame.K_DOWN else -1)) % n
+                sfx.play('select')
+            elif key in (pygame.K_LEFT, pygame.K_RIGHT):
+                self._option_change(self.options_sel, 1 if key == pygame.K_RIGHT else -1)
+            elif key in (pygame.K_RETURN, pygame.K_SPACE):
+                self._option_change(self.options_sel, 1)
+            elif click:
+                for i, r in enumerate(self.options_rects):
+                    if r.collidepoint(event.pos):
+                        self.options_sel = i
+                        self._option_change(i, 1)
+                        return
+            return
+        if self.state in ('SAVE_MENU', 'LOAD_MENU'):
+            rclick = event.type == pygame.MOUSEBUTTONDOWN and event.button == 3
+            slots = self.slot_list()
+            if key == pygame.K_ESCAPE or rclick:
+                sfx.play('cancel')
+                self.state = self.slotmenu_return if self.slotmenu_return != 'MAP_MENU' else 'IDLE'
+            elif key in (pygame.K_UP, pygame.K_DOWN):
+                self.slot_sel = (self.slot_sel + (1 if key == pygame.K_DOWN else -1)) % len(slots)
+                sfx.play('select')
+            elif key in (pygame.K_RETURN, pygame.K_SPACE):
+                self.slot_choose(slots[self.slot_sel])
+            elif click:
+                for i, r in enumerate(self.slot_rects):
+                    if r.collidepoint(event.pos):
+                        self.slot_sel = i
+                        self.slot_choose(slots[i])
+                        return
+            return
+        if self.state == 'ROSTER':
+            rclick = event.type == pygame.MOUSEBUTTONDOWN and event.button == 3
+            party = self.alive('player')
+            if not party:
+                self.state = self.menu_return
+                return
+            if key == pygame.K_ESCAPE or rclick:
+                sfx.play('cancel')
+                self.state = self.menu_return
+            elif key in (pygame.K_UP, pygame.K_DOWN):
+                self.roster_sel = (self.roster_sel + (1 if key == pygame.K_DOWN else -1)) % len(party)
+                sfx.play('select')
+            elif key == pygame.K_i:
+                self.detail_unit = party[self.roster_sel]
+                self.detail_return = 'IDLE'
+                self.state = 'DETAIL'
+            elif key in (pygame.K_RETURN, pygame.K_SPACE):
+                self._roster_jump(party[self.roster_sel])
+            elif click:
+                for i, r in enumerate(self.roster_rects):
+                    if r.collidepoint(event.pos):
+                        self.roster_sel = i
+                        self._roster_jump(party[i])
+                        return
             return
         if self.state == 'GUIDE':
             rclick = event.type == pygame.MOUSEBUTTONDOWN and event.button == 3
@@ -737,7 +1051,10 @@ class Game:
             return
         if self.state == 'DIALOGUE':
             if click or key in (pygame.K_RETURN, pygame.K_SPACE):
-                self.advance_dialogue()
+                if self._dialogue_full():
+                    self.advance_dialogue()
+                else:
+                    self.dialogue_t = 999.0        # 先把整行文字显示完
             elif key == pygame.K_ESCAPE:
                 self.advance_dialogue(skip=True)
             return
@@ -783,19 +1100,32 @@ class Game:
             return
 
         if event.type == pygame.KEYDOWN:
+            if self.state == 'MAP_MENU':
+                if key in (pygame.K_UP, pygame.K_DOWN):
+                    d = 1 if key == pygame.K_DOWN else -1
+                    for _ in range(len(self.menu_items)):       # 跳过禁用项
+                        self.menu_sel = (self.menu_sel + d) % len(self.menu_items)
+                        if self.menu_items[self.menu_sel][1]:
+                            break
+                    sfx.play('select')
+                elif key in (pygame.K_RETURN, pygame.K_SPACE):
+                    if self.menu_items[self.menu_sel][1]:
+                        self._activate_map_menu(self.menu_items[self.menu_sel][0])
+                elif key == pygame.K_ESCAPE:
+                    sfx.play('cancel')
+                    self.state = 'IDLE'
+                return
             if key == pygame.K_e and self.state == 'IDLE':
-                unacted = [u for u in self.alive('player') if not u.acted]
-                if not unacted or self.end_confirm_t > 0:
-                    self.end_confirm_t = 0.0
-                    self.start_enemy_phase()
-                else:
-                    self.end_confirm_t = 2.0
-                    self.show_banner('尚有未行动单位 · 再按 E 确认', ui.COL_GOLD)
+                self.try_end_turn()
             elif key == pygame.K_z and self.state == 'IDLE':
                 if self.can_undo():
                     self.do_undo()
                 else:
                     self.show_banner('无法回溯', ui.COL_DIM)
+            elif key == pygame.K_l and self.state in ('IDLE', 'MOVE'):
+                self.open_roster(self.state if self.state == 'IDLE' else 'IDLE')
+            elif key == pygame.K_o and self.state == 'IDLE':
+                self.open_options('IDLE')
             elif key == pygame.K_d and self.state in ('IDLE', 'MOVE'):
                 self.threat_all = not self.threat_all
                 sfx.play('select')
@@ -849,16 +1179,7 @@ class Game:
         if self.state == 'MAP_MENU':
             for i, r in enumerate(self.menu_rects):
                 if r.collidepoint(pos) and self.menu_items[i][1]:
-                    label = self.menu_items[i][0]
-                    sfx.play('confirm')
-                    self.state = 'IDLE'
-                    if label == '结束回合':
-                        self.start_enemy_phase()
-                    elif label == '保存进度':
-                        self.save_battle_state()
-                        self.add_float('已保存', self.map_menu_pos, ui.COL_GOLD)
-                    elif self.can_undo():          # 时光回溯
-                        self.do_undo()
+                    self._activate_map_menu(self.menu_items[i][0])
                     return
             self.state = 'IDLE'                    # 点菜单外关闭
             return
@@ -986,11 +1307,14 @@ class Game:
             if self.cinema_t >= story.CINEMA_SCENES[self.cinema_idx]['dur']:
                 self.cinema_next()
             return
+        if self.state == 'DIALOGUE':
+            self.dialogue_t += dt      # 逐字显示计时
         if self.state in ('TITLE', 'INTRO', 'COMPLETE', 'PROLOGUE', 'DIALOGUE',
-                          'CODEX', 'DETAIL', 'GUIDE', 'CONVO'):
+                          'CODEX', 'DETAIL', 'GUIDE', 'CONVO', 'NEWGAME', 'OPTIONS',
+                          'SAVE_MENU', 'LOAD_MENU', 'ROSTER'):
             return
-        if self.ff and self.state in ('ENEMY_TURN', 'COMBAT'):
-            dt *= 3                    # 空格按住：战斗/敌方回合快进
+        if (self.ff or config.get('skip_anim')) and self.state in ('ENEMY_TURN', 'COMBAT'):
+            dt *= 3                    # 空格按住 / 选项「跳过战斗动画」：快进
         for f in self.floats:
             f['t'] += dt / FLOAT_DUR
         self.floats = [f for f in self.floats if f['t'] < 1.0]
@@ -1114,6 +1438,8 @@ class Game:
         if self.state == 'TITLE':
             items = [('新游戏', True),
                      ('继续游戏', self.save_data is not None),
+                     ('读取存档', any(s['exists'] for s in self.slot_summaries.values())),
+                     ('选项设置', True),
                      ('人物图鉴', True),
                      ('攻略看板', True)]
             summary = None
@@ -1170,6 +1496,21 @@ class Game:
         if self.state == 'CONVO':
             ui.draw_convo(surf, self.convo_title, self.convo_lines, self.convo_idx,
                           assets.portrait, story.NAME_TO_CLS)
+            return
+        if self.state == 'NEWGAME':
+            self.newgame_rects = ui.draw_newgame(
+                surf, self.newgame_diff, self.newgame_mode, self.newgame_sel,
+                bg=assets.cinema('keyart_title'))
+            return
+        if self.state == 'OPTIONS':
+            self.options_rects = ui.draw_options(surf, self.options_sel)
+            return
+        if self.state in ('SAVE_MENU', 'LOAD_MENU'):
+            slots = self.slot_list()
+            summaries = [self.slot_summaries[s] for s in slots]
+            title = '保存进度' if self.slotmenu_mode == 'save' else '读取存档'
+            self.slot_rects = ui.draw_slot_menu(
+                surf, title, slots, summaries, self.slot_sel, self.slotmenu_mode)
             return
 
         water_frame = int(self.time * 1.6) % 2
@@ -1252,11 +1593,13 @@ class Game:
             pygame.draw.rect(surf, (16, 14, 24),
                              (0, GRID_H * CELL, 720, 100))
             speaker, side, text = self.dialogue_lines[self.dialogue_idx]
+            reveal = int(self.dialogue_t * config.text_cps())
+            shown = text if reveal >= len(text) else text[:reveal]   # 逐字显示
             pic = None
             if side is not None:
                 pic = (assets.portrait(speaker)
                        or assets.unit_sprite(story.NAME_TO_CLS[speaker]))
-            ui.draw_dialogue(surf, speaker, side, text, pic)
+            ui.draw_dialogue(surf, speaker, side, shown, pic)
             return
 
         hover_unit = self.unit_at(self.hover) if self.hover else None
@@ -1269,9 +1612,13 @@ class Game:
         if self.chapter['win'] == 'defend':
             remain = max(0, self.chapter['hold_turns'] - self.turn + 1)
             obj = f'{obj}（剩 {remain} 回合）'
+        obj += f'　·　敌 {len(self.alive("enemy"))}'
         if self.seals > 0:
             obj += f'　·　转职证 ×{self.seals}'
-        ui.draw_objective(surf, self.turn, obj)
+        tag = DIFFICULTY[self.difficulty]['label']
+        if self.permadeath:
+            tag += '·经典'
+        ui.draw_objective(surf, self.turn, obj, tag=tag)
 
         if self.state == 'MENU':
             px = (self.selected.x + 1) * CELL + 4
@@ -1289,6 +1636,8 @@ class Game:
         elif self.state == 'DETAIL':
             ui.draw_unit_detail(surf, self.detail_unit,
                                 story.BIOS.get(self.detail_unit.name))
+        elif self.state == 'ROSTER':
+            self.roster_rects = ui.draw_roster(surf, self.alive('player'), self.roster_sel)
 
         if self.ff and self.state in ('ENEMY_TURN', 'COMBAT'):
             ui.draw_ff_indicator(surf)
