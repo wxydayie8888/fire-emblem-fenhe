@@ -1102,17 +1102,14 @@ class Game:
                 best = f' ｜ 最佳 {r["best_turns"]} 回合' if r['best_turns'] else ''
                 ui.draw_records_line(
                     surf, f'通关 {r["clears"]} 周目 ｜ 累计击破 {r["kills"]}{best}')
-            frame = int(self.time * 2.4)
-            start_x = (720 - len(self.roster) * 84) // 2
-            for i, u in enumerate(self.roster):
-                surf.blit(assets.unit_sprite(u.cls, (frame + i) % 2), (start_x + i * 84, 282))
             return
         if self.state == 'INTRO':
             rows = self.chapter['map']      # 本章地图做暗化背景
             wf = int(self.time * 1.6) % 2
             for y in range(GRID_H):
                 for x in range(GRID_W):
-                    surf.blit(assets.terrain_sprite(rows[y][x], wf), (x * CELL, y * CELL))
+                    surf.blit(assets.terrain_sprite(rows[y][x], wf, cell=(x, y)),
+                              (x * CELL, y * CELL))
             pygame.draw.rect(surf, (16, 14, 24), (0, GRID_H * CELL, GRID_W * CELL, 100))
             ui.draw_intro(surf, self.chapter_idx, self.chapter, backdrop=True)
             return
@@ -1148,7 +1145,8 @@ class Game:
             for x in range(GRID_W):
                 ch = self.grid.rows[y][x]
                 variant = 1 if (ch == 'B' and x > 0 and self.grid.rows[y][x - 1] == 'B') else 0
-                surf.blit(assets.terrain_sprite(ch, water_frame, variant), (x * CELL, y * CELL))
+                surf.blit(assets.terrain_sprite(ch, water_frame, variant, cell=(x, y)),
+                          (x * CELL, y * CELL))
 
         if self.threat_all and self.state in ('IDLE', 'MOVE'):
             self._danger_tiles = self.all_threat_tiles()
