@@ -154,12 +154,14 @@ def _cut(rel, col, row):
 # --- HD 美术（桌面版）：assets/hd/terrain|units/*.png，缺失时回退 DawnLike ---
 TERRAIN_HD = {'P': 'grass', 'F': 'forest', 'M': 'mountain', 'W': 'water',
               'B': 'bridge', 'T': 'fort', 'S': 'stone', 'R': 'wall', 'G': 'gate'}
-# 高级职复用基础职 HD 单位
+# 高级职复用基础职；部分敌方职业复用相近造型（脚下红环区分敌我）
 UNIT_HD_ALIAS = {'great_lord': 'lord', 'paladin': 'cavalier', 'sniper': 'archer',
                  'sage': 'mage', 'swordmaster': 'myrmidon', 'bishop': 'cleric',
-                 'falcon': 'pegasus', 'marshal': 'knight'}
-# 地图美术开关：正统像素风(DawnLike) / HD立绘。立绘始终用于对话与图鉴。
-HD_MAP = False
+                 'falcon': 'pegasus', 'marshal': 'knight',
+                 'e_archer': 'archer', 'e_knight': 'general',
+                 'assassin': 'e_myrm', 'dark_mage': 'mage'}
+# 地图美术开关：True=AI高分辨率像素(精灵表切片+像素地形)，缺图回退 DawnLike。
+HD_MAP = True
 _hd_terrain, _hd_unit = {}, {}
 
 
@@ -199,8 +201,7 @@ def hd_terrain(ch, vi=0):
         name = TERRAIN_HD.get(ch)
         img = _load_hd('terrain', name) if name else None
         if img is not None:
-            img = pygame.transform.smoothscale(img, (CELL, CELL))
-            img = _harmonize_terrain(img)
+            img = pygame.transform.scale(img, (CELL, CELL))   # 像素地形：最近邻保持清晰
         _hd_terrain[ch] = img
     base = _hd_terrain[ch]
     if base is None or vi == 0 or ch not in FLIP_TERRAINS:
