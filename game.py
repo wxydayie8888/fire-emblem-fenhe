@@ -59,6 +59,7 @@ class Game:
         self.codex_sel, self.codex_rects = 0, []
         self.detail_unit, self.detail_return = None, 'IDLE'
         self.guide_page, self.guide_tabs = 0, []
+        self.convo_lines, self.convo_idx, self.convo_title = [], 0, ''
         self.state = 'TITLE'
 
     def _clear_battle_state(self):
@@ -98,6 +99,26 @@ class Game:
 
     def begin_intro(self):
         self.state = 'INTRO'
+
+    def open_support_convo(self, name):
+        """打开某角色的全部支援对话（人物图鉴按 S）。"""
+        import supports
+        lines, partners = [], []
+        for pair in supports.SUPPORT_PAIRS:
+            if name in pair:
+                other = next(p for p in pair if p != name)
+                convo = story.support_convo(name, other)
+                if convo:
+                    partners.append(other)
+                    lines.append(('—', f'· {name} 与 {other} ·'))
+                    lines.extend(convo)
+        if not lines:
+            return
+        sfx.play('confirm')
+        self.convo_lines = lines
+        self.convo_idx = 0
+        self.convo_title = name
+        self.state = 'CONVO'
 
     def new_game(self):
         self.chapter_idx = 0
@@ -683,11 +704,24 @@ class Game:
             elif key == pygame.K_RIGHT:
                 self.codex_sel = (self.codex_sel + 1) % len(story.CODEX_ORDER)
                 sfx.play('select')
+            elif key == pygame.K_s:
+                self.open_support_convo(story.CODEX_ORDER[self.codex_sel])
             elif click:
                 for i, r in enumerate(self.codex_rects):
                     if r.collidepoint(event.pos):
                         self.codex_sel = i
                         sfx.play('select')
+            return
+        if self.state == 'CONVO':
+            rclick = event.type == pygame.MOUSEBUTTONDOWN and event.button == 3
+            if key == pygame.K_ESCAPE or rclick:
+                sfx.play('cancel')
+                self.state = 'CODEX'
+            elif click or key in (pygame.K_RETURN, pygame.K_SPACE):
+                sfx.play('select')
+                self.convo_idx += 1
+                if self.convo_idx >= len(self.convo_lines):
+                    self.state = 'CODEX'
             return
         if self.state == 'DETAIL':
             rclick = event.type == pygame.MOUSEBUTTONDOWN and event.button == 3
@@ -953,7 +987,7 @@ class Game:
                 self.cinema_next()
             return
         if self.state in ('TITLE', 'INTRO', 'COMPLETE', 'PROLOGUE', 'DIALOGUE',
-                          'CODEX', 'DETAIL', 'GUIDE'):
+                          'CODEX', 'DETAIL', 'GUIDE', 'CONVO'):
             return
         if self.ff and self.state in ('ENEMY_TURN', 'COMBAT'):
             dt *= 3                    # 空格按住：战斗/敌方回合快进
@@ -1103,6 +1137,10 @@ class Game:
             return
         if self.state == 'GUIDE':
             self.guide_tabs = ui.draw_guide(surf, guide.pages(), self.guide_page)
+            return
+        if self.state == 'CONVO':
+            ui.draw_convo(surf, self.convo_title, self.convo_lines, self.convo_idx,
+                          assets.portrait, story.NAME_TO_CLS)
             return
 
         water_frame = int(self.time * 1.6) % 2

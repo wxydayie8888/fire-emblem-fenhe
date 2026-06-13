@@ -121,5 +121,17 @@ def _mechanics():
     ])
 
 
+def _lore():
+    import story
+    paras = []
+    for title, lines in story.WORLD_LORE:
+        paras.append(('h', title))
+        for line in lines:
+            paras.append(('p', line))
+        paras.append(('gap',))
+    return ('世界观 · 史话', paras)
+
+
 def pages():
-    return [_controls(), _combat(), _promotion(), _skills(), _supports(), _mechanics()]
+    return [_controls(), _combat(), _promotion(), _skills(), _supports(),
+            _mechanics(), _lore()]

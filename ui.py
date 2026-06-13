@@ -491,6 +491,33 @@ def draw_prologue(surf, lines, page_idx, total):
           (SCREEN_W // 2, SCREEN_H - 40), COL_DIM, center=True)
 
 
+def draw_convo(surf, title, lines, idx, portrait_fn, name_to_cls):
+    """支援对话阅读器：当前发言者立绘 + 已显示的对话历史。"""
+    surf.fill((18, 16, 26))
+    _text(surf, f'支 援 对 话 · {title}', 22, (SCREEN_W // 2, 26), COL_GOLD, center=True)
+    speaker, text = lines[idx]
+    if speaker != '—' and portrait_fn(speaker) is not None:
+        big = _fit(portrait_fn(speaker), 180)
+        surf.blit(big, (SCREEN_W - 230, 90))
+    # 显示当前及之前几行
+    start = max(0, idx - 6)
+    y = 90
+    for i in range(start, idx + 1):
+        sp, tx = lines[i]
+        cur = i == idx
+        if sp == '—':
+            _text(surf, tx, 18, (60, y), COL_GOLD)
+        else:
+            col = COL_TEXT if cur else COL_DIM
+            _text(surf, sp, 17, (60, y), COL_PLAYER if cur else (110, 120, 150))
+            for seg in _wrap(tx, 18, SCREEN_W - 320):
+                y += 28
+                _text(surf, seg, 18, (84, y), col)
+        y += 36
+    _text(surf, '点击 / 回车 继续 · ESC 返回图鉴', 14,
+          (SCREEN_W // 2, SCREEN_H - 22), COL_DIM, center=True)
+
+
 def draw_dialogue(surf, speaker, side, text, sprite):
     """火纹式底部对话框。side: left我方/right敌方/None旁白居中。"""
     box_h = 150
@@ -569,6 +596,13 @@ def draw_codex(surf, entries, sel, pic_fn):
             y += 24
     else:
         _text(surf, '——（敌方角色，无成长数据）', 15, (210, y), COL_DIM)
+    # 羁绊伙伴提示
+    import supports as _sup
+    partners = [next(p for p in pair if p != name)
+                for pair in _sup.SUPPORT_PAIRS if name in pair]
+    if partners:
+        _text(surf, f'羁绊：{" / ".join(partners)}　（按 S 阅读支援对话）', 14,
+              (210, SCREEN_H - 70), COL_GOLD)
     return rects
 
 
