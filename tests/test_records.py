@@ -39,3 +39,14 @@ def test_tower_upgrade_cost():
     assert settings.tower_upgrade_cost(0) == 3
     assert settings.tower_upgrade_cost(1) == 5
     assert settings.tower_upgrade_cost(4) == 11
+
+
+def test_grades(tmp_path):
+    p = tmp_path / 'records.json'
+    r = records.set_grade(0, 'B', path=p)
+    assert r['grades'] == {'0': 'B'}
+    r = records.set_grade(0, 'S', path=p)              # 升级
+    assert r['grades']['0'] == 'S'
+    r = records.set_grade(0, 'A', path=p)              # 不降级
+    assert r['grades']['0'] == 'S'
+    assert records.s_rank_count(records.load(p)) == 1

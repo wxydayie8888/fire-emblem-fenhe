@@ -7,13 +7,15 @@ from paths import user_data_dir
 
 RECORDS_PATH = user_data_dir() / 'records.json'
 # best_floor: 试炼之塔最高层；crystals: 试炼晶核（元货币）；tower: 永久强化等级 {key:lv}
+# grades: 每章最佳评定 {章号: 'S'/'A'/'B'/'C'}
 DEFAULT = {'clears': 0, 'kills': 0, 'best_turns': None,
-           'best_floor': 0, 'crystals': 0, 'tower': {}}
+           'best_floor': 0, 'crystals': 0, 'tower': {}, 'grades': {}}
+_GRADE_RANK = {'C': 0, 'B': 1, 'A': 2, 'S': 3}
 
 
 def _fresh():
     r = dict(DEFAULT)
-    r['tower'] = {}
+    r['tower'], r['grades'] = {}, {}
     return r
 
 
@@ -32,6 +34,8 @@ def load(path=RECORDS_PATH):
         return _fresh()
     if not isinstance(out['tower'], dict):
         out['tower'] = {}
+    if not isinstance(out['grades'], dict):
+        out['grades'] = {}
     return out
 
 
@@ -63,6 +67,22 @@ def add_tower_run(floor, crystals_gained, path=RECORDS_PATH):
     r['crystals'] += crystals_gained
     _save(r, path)
     return r
+
+
+def set_grade(idx, grade, path=RECORDS_PATH):
+    """记录某章最佳评定（只升不降）。返回更新后的战绩。"""
+    r = load(path)
+    g = dict(r.get('grades', {}))
+    cur = g.get(str(idx))
+    if cur is None or _GRADE_RANK[grade] > _GRADE_RANK[cur]:
+        g[str(idx)] = grade
+    r['grades'] = g
+    _save(r, path)
+    return r
+
+
+def s_rank_count(r):
+    return sum(1 for v in r.get('grades', {}).values() if v == 'S')
 
 
 def set_tower_upgrades(tower, crystals, path=RECORDS_PATH):

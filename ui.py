@@ -345,7 +345,7 @@ def draw_guide(surf, pages, idx):
     return tabs
 
 
-def draw_intro(surf, idx, ch, backdrop=False, gold=None):
+def draw_intro(surf, idx, ch, backdrop=False, gold=None, best_grade=None):
     if backdrop:
         veil = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
         veil.fill((16, 14, 24, 216))
@@ -362,17 +362,32 @@ def draw_intro(surf, idx, ch, backdrop=False, gold=None):
     if gold is not None:
         _text(surf, f'军资 {gold}　·　按 S 进入商店', 16,
               (SCREEN_W // 2, 506), (230, 200, 120), center=True)
+    if best_grade:
+        col = _GRADE_COLOR.get(best_grade, COL_GOLD)
+        _text(surf, f'最佳评定  {best_grade}', 16, (SCREEN_W // 2, 538), col, center=True)
 
 
-def draw_clear(surf, idx, title, turns):
+_GRADE_COLOR = {'S': (255, 215, 90), 'A': (130, 220, 255),
+                'B': (170, 235, 150), 'C': (210, 180, 170)}
+
+
+def draw_clear(surf, idx, title, turns, grade=None, deaths=0):
     veil = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
     veil.fill((10, 10, 16, 180))
     surf.blit(veil, (0, 0))
+    cy = GRID_H * CELL // 2
     num = '一二三四五六七八九十'[idx]
-    _text(surf, '制 压 ！', 52, (SCREEN_W // 2, GRID_H * CELL // 2 - 50), COL_GOLD, center=True)
-    _text(surf, f'第{num}章「{title}」 用时 {turns} 回合', 20,
-          (SCREEN_W // 2, GRID_H * CELL // 2 + 20), COL_TEXT, center=True)
-    _text(surf, '点击继续', 16, (SCREEN_W // 2, GRID_H * CELL // 2 + 70), COL_DIM, center=True)
+    _text(surf, '制 压 ！', 50, (SCREEN_W // 2, cy - 96), COL_GOLD, center=True)
+    if grade:
+        col = _GRADE_COLOR.get(grade, COL_TEXT)
+        _text(surf, '评 定', 16, (SCREEN_W // 2, cy - 44), COL_DIM, center=True)
+        _text(surf, grade, 80, (SCREEN_W // 2, cy + 8), col, center=True)
+        info = f'用时 {turns} 回合 · ' + ('全员生还' if deaths == 0 else f'{deaths} 人阵亡')
+        _text(surf, info, 17, (SCREEN_W // 2, cy + 64), COL_TEXT, center=True)
+    else:
+        _text(surf, f'第{num}章「{title}」 用时 {turns} 回合', 20,
+              (SCREEN_W // 2, cy + 10), COL_TEXT, center=True)
+    _text(surf, '点击继续', 15, (SCREEN_W // 2, cy + 100), COL_DIM, center=True)
 
 
 def draw_complete(surf, roster, fates):

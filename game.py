@@ -83,6 +83,7 @@ class Game:
         self.roster_sel, self.roster_rects = 0, []
         self.shop_sel, self.shop_rects = 0, []
         self.shop_pending = None               # 待选目标的「之种」商品
+        self.last_grade, self.last_clear_deaths = None, 0   # 本章战绩评定
         self.tower = False                     # 是否处于试炼之塔
         self.floor = 0
         self.tower_mut = None                  # 本层词条
@@ -434,11 +435,26 @@ class Game:
         self.setup_chapter(retry)
         self.enter_battle()
 
+    @staticmethod
+    def _grade_for(turns, deaths):
+        """战绩评定：无人阵亡 + 速度 → S/A，否则 B/C。"""
+        if deaths == 0 and turns <= 7:
+            return 'S'
+        if deaths == 0 and turns <= 11:
+            return 'A'
+        if deaths <= 1 and turns <= 15:
+            return 'B'
+        return 'C'
+
     def chapter_clear(self):
         sfx.play('victory')
         self.camp_turns += self.turn
         self.seals += 1               # 每章通关获得 1 枚转职证
         self.gold += GOLD_PER_CLEAR    # 通关军资
+        deaths = sum(1 for u in self.roster if not u.alive)
+        self.last_grade = self._grade_for(self.turn, deaths)
+        self.last_clear_deaths = deaths
+        self.records = records.set_grade(self.chapter_idx, self.last_grade)
         if self.permadeath:           # 经典模式：本章阵亡者永久退场
             for u in self.roster:
                 if not u.alive:
@@ -1938,7 +1954,8 @@ class Game:
             self._draw_terrain(surf, rows, wf)
             pygame.draw.rect(surf, (16, 14, 24), (0, GRID_H * CELL, GRID_W * CELL, 100))
             ui.draw_intro(surf, self.chapter_idx, self.chapter, backdrop=True,
-                          gold=self.gold)
+                          gold=self.gold,
+                          best_grade=self.records.get('grades', {}).get(str(self.chapter_idx)))
             return
         if self.state == 'SHOP':
             self.shop_rects = ui.draw_shop(surf, SHOP_ITEMS, self.gold,
@@ -2167,6 +2184,7 @@ class Game:
         if self.banner is not None:
             ui.draw_banner(surf, self.banner['text'], self.banner['t'], self.banner['color'])
         if self.state == 'CLEAR':
-            ui.draw_clear(surf, self.chapter_idx, self.chapter['title'], self.turn)
+            ui.draw_clear(surf, self.chapter_idx, self.chapter['title'], self.turn,
+                          grade=self.last_grade, deaths=self.last_clear_deaths)
         elif self.state == 'END':
             ui.draw_defeat(surf, self.can_undo())

@@ -533,7 +533,7 @@ CHAPTERS = [
             {'name': '献祭妖术师', 'cls': 'shaman',  'pos': (12, 3), 'ai': 'guard'},
             {'name': '龙前重甲', 'cls': 'e_knight',  'pos': (10, 5), 'ai': 'guard'},
             {'name': '法夫尼尔', 'cls': 'dragon',    'pos': (11, 4), 'boss': True,
-             'boost': {'hp': 8, 'pow': 1, 'dfn': 1}},
+             'boost': {'hp': 70, 'pow': 3, 'dfn': 4}},   # 终章之龙：需集火 + 特效武器多轮才能斩
         ],
         'reinforce': {4: [{'name': '盘旋飞龙', 'cls': 'wyvern', 'pos': (14, 0)},
                           {'name': '盘旋飞龙', 'cls': 'wyvern', 'pos': (14, 9)}],
