@@ -529,6 +529,83 @@ def draw_text_center(surf, s, size, y, color=COL_GOLD):
     _text(surf, s, size, (SCREEN_W // 2, y), color, center=True)
 
 
+def draw_reward(surf, cards, sel, floor):
+    """试炼过关三选一（盖在战场上）。返回卡片 rect。"""
+    veil = pygame.Surface((SCREEN_W, GRID_H * CELL), pygame.SRCALPHA)
+    veil.fill((10, 10, 16, 180))
+    surf.blit(veil, (0, 0))
+    _text(surf, f'突破第 {floor} 层  — 选择增益', 26,
+          (SCREEN_W // 2, 70), COL_GOLD, center=True)
+    rects = []
+    cw, gap = 200, 24
+    total = len(cards) * cw + (len(cards) - 1) * gap
+    x0 = (SCREEN_W - total) // 2
+    y = 150
+    for i, c in enumerate(cards):
+        r = pygame.Rect(x0 + i * (cw + gap), y, cw, 200)
+        active = i == sel
+        pygame.draw.rect(surf, COL_PANEL_LIGHT if active else COL_PANEL, r, border_radius=12)
+        pygame.draw.rect(surf, COL_GOLD if active else COL_BORDER, r, 3 if active else 2,
+                         border_radius=12)
+        _text(surf, c['name'], 26, (r.centerx, r.y + 50), COL_GOLD, center=True)
+        for j, line in enumerate(_wrap(c['desc'], 16, cw - 30)):
+            _text(surf, line, 16, (r.centerx, r.y + 110 + j * 26), COL_TEXT, center=True)
+        rects.append(r)
+    _text(surf, '← → 选择 · 回车/点击 确认', 14,
+          (SCREEN_W // 2, y + 224), COL_DIM, center=True)
+    return rects
+
+
+def draw_tower_meta(surf, records, upgrades, cost_fn, sel, bg=None):
+    """试炼大厅：最高层 / 晶核 / 永久强化 / 出发。返回 rects（强化行 + 出发）。"""
+    _keyart(surf, bg)
+    _text(surf, '试 炼 之 塔', 46, (SCREEN_W // 2, 70), COL_GOLD, center=True)
+    _text(surf, f'最高层 {records.get("best_floor", 0)}　·　试炼晶核 {records.get("crystals", 0)}',
+          18, (SCREEN_W // 2, 122), COL_TEXT, center=True)
+    rects = []
+    tower = records.get('tower', {})
+    crystals = records.get('crystals', 0)
+    y = 168
+    for i, ud in enumerate(upgrades):
+        lv = tower.get(ud['key'], 0)
+        r = pygame.Rect(SCREEN_W // 2 - 270, y, 540, 56)
+        active = i == sel
+        pygame.draw.rect(surf, COL_PANEL_LIGHT if active else COL_PANEL, r, border_radius=8)
+        pygame.draw.rect(surf, COL_GOLD if active else COL_BORDER, r, 2, border_radius=8)
+        _text(surf, f'{ud["name"]}  Lv{lv}/{ud["max"]}', 19, (r.x + 18, r.y + 7), COL_TEXT)
+        _text(surf, ud['desc'], 13, (r.x + 18, r.y + 33), COL_DIM)
+        if lv >= ud['max']:
+            tail = font(16).render('已满级', True, COL_GOLD)
+        else:
+            cost = cost_fn(lv)
+            tail = font(16).render(f'{cost} 晶核', True,
+                                   COL_GOLD if crystals >= cost else (150, 90, 90))
+        surf.blit(tail, (r.right - 18 - tail.get_width(), r.y + 18))
+        rects.append(r)
+        y += 64
+    sr = pygame.Rect(SCREEN_W // 2 - 100, y + 8, 200, 52)
+    active = sel == len(upgrades)
+    pygame.draw.rect(surf, COL_PANEL_LIGHT if active else COL_PANEL, sr, border_radius=10)
+    pygame.draw.rect(surf, COL_GOLD if active else COL_BORDER, sr, 3 if active else 2,
+                     border_radius=10)
+    _text(surf, '出 发 ⚔', 24, sr.center, COL_GOLD if active else COL_TEXT, center=True)
+    rects.append(sr)
+    _text(surf, '↑↓ 选择 · 回车 购买/出发 · ESC 返回', 14,
+          (SCREEN_W // 2, SCREEN_H - 32), COL_DIM, center=True)
+    return rects
+
+
+def draw_tower_over(surf, floor, records):
+    surf.fill((16, 14, 24))
+    _text(surf, '试 炼 结 束', 46, (SCREEN_W // 2, 150), COL_GOLD, center=True)
+    _text(surf, f'到达第 {floor} 层', 30, (SCREEN_W // 2, 230), COL_TEXT, center=True)
+    _text(surf, f'获得试炼晶核 ×{floor}', 22, (SCREEN_W // 2, 290),
+          (230, 200, 120), center=True)
+    _text(surf, f'历史最高 第 {records.get("best_floor", 0)} 层　·　晶核存量 {records.get("crystals", 0)}',
+          18, (SCREEN_W // 2, 350), COL_DIM, center=True)
+    _text(surf, '点击 / 回车 返回标题', 16, (SCREEN_W // 2, 440), COL_DIM, center=True)
+
+
 def draw_shop(surf, items, gold, sel, seals):
     """章间商店。返回各商品行 rect。"""
     surf.fill((16, 14, 24))

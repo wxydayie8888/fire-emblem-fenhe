@@ -395,8 +395,11 @@ director = MusicDirector()
 
 # 游戏状态 -> 曲目 key 的映射
 def track_for(state, chapter_idx=0, enemy_phase=False):
-    if state in ('TITLE', 'CODEX', 'GUIDE'):
+    if state in ('TITLE', 'CODEX', 'GUIDE', 'TOWER_META', 'NEWGAME', 'OPTIONS',
+                 'SAVE_MENU', 'LOAD_MENU'):
         return 'title'
+    if state == 'TOWER_OVER':
+        return 'defeat'
     if state in ('CINEMA',):
         return None               # 开场动画用 AI 交响乐（game 单独处理）
     if state in ('PROLOGUE', 'INTRO', 'DIALOGUE'):
@@ -408,7 +411,8 @@ def track_for(state, chapter_idx=0, enemy_phase=False):
     if state == 'END':
         return 'defeat'
     if state in ('IDLE', 'MOVE', 'MENU', 'MAP_MENU', 'TARGET', 'FORECAST',
-                 'COMBAT', 'LEVELUP', 'ENEMY_TURN', 'DETAIL'):
+                 'COMBAT', 'LEVELUP', 'ENEMY_TURN', 'DETAIL', 'ROSTER', 'SHOP',
+                 'SHOP_PICK', 'REWARD'):
         if enemy_phase:
             return 'enemy'
         return ('map_hope', 'map_tense', 'map_dark')[min(2, chapter_idx // 4 + (chapter_idx >= 7))]

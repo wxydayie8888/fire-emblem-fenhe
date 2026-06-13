@@ -613,3 +613,57 @@ MODES = {
     'casual':  {'label': '休闲', 'desc': '角色阵亡下章满血归队，轻松通关。'},
     'classic': {'label': '经典', 'desc': '角色一旦阵亡永久退场，火纹传统。'},
 }
+
+# ============ 试炼之塔（无尽 roguelite 模式）============
+TOWER_MAP = [
+    'PPPPPPPPPPPPPPP',
+    'PPFPPMMPPPPPFPP',
+    'PPPPPPPPPPPPPPP',
+    'PPPPPPPTPPPPPPP',
+    'PPFPPPPPPPPPFPP',
+    'PPPPPPPPPPPPPPP',
+    'PPPPPMMPPPPPPPP',
+    'PPFPPPPPPPPPFPP',
+    'PPPPPPPPPPPPPPP',
+    'PPPPPPPPPPPPPPP',
+]
+TOWER_ROSTER = [('罗伊', 'lord'), ('兰斯', 'cavalier'),
+                ('丽贝卡', 'archer'), ('莉莉娜', 'mage')]
+TOWER_PLAYER_POS = [(0, 4), (1, 4), (0, 5), (1, 5)]
+# 敌人候选落点（均为可通行格），每层取前 N 个
+TOWER_ENEMY_CELLS = [(14, 4), (14, 2), (14, 6), (13, 3), (13, 5),
+                     (12, 2), (12, 7), (13, 8), (11, 4), (14, 8)]
+TOWER_POOL = ['fighter', 'soldier', 'e_myrm', 'e_archer', 'mage',
+              'warrior', 'shaman', 'general', 'pegasus']
+TOWER_BOSS_EVERY = 5         # 每 5 层一个强化首领
+
+# 每层随机词条（floor>=2 起）
+TOWER_MUTATORS = [
+    {'name': '狂暴', 'boost': {'pow': 3}},
+    {'name': '疾风', 'boost': {'spd': 3}},
+    {'name': '铁壁', 'boost': {'dfn': 3}},
+    {'name': '嗜血', 'boost': {'hp': 6}},
+    {'name': '神射', 'boost': {'skl': 4}},
+]
+# 过关三选一奖励
+TOWER_REWARDS = [
+    {'key': 'heal',   'name': '休整', 'desc': '全队回满 HP'},
+    {'key': 'hp',     'name': '强身', 'desc': '全队 HP 上限 +3'},
+    {'key': 'pow',    'name': '力量', 'desc': '全队 力量 +1'},
+    {'key': 'skl',    'name': '技巧', 'desc': '全队 技巧 +1'},
+    {'key': 'spd',    'name': '迅捷', 'desc': '全队 速度 +1'},
+    {'key': 'dfn',    'name': '坚壁', 'desc': '全队 防御 +1'},
+    {'key': 'revive', 'name': '复生', 'desc': '复活一名阵亡同伴（半血）'},
+]
+# 元进度永久强化（晶核购买，跨周目保留）
+TOWER_UPGRADES = [
+    {'key': 'hp',  'name': '坚毅', 'desc': '出发全队 HP 上限 +3/级', 'stat': 'hp',  'gain': 3, 'max': 5},
+    {'key': 'pow', 'name': '锋锐', 'desc': '出发全队 力量 +1/级',    'stat': 'pow', 'gain': 1, 'max': 5},
+    {'key': 'spd', 'name': '疾行', 'desc': '出发全队 速度 +1/级',    'stat': 'spd', 'gain': 1, 'max': 5},
+    {'key': 'dfn', 'name': '铁壁', 'desc': '出发全队 防御 +1/级',    'stat': 'dfn', 'gain': 1, 'max': 5},
+]
+
+
+def tower_upgrade_cost(level):
+    """购买「第 level 级」永久强化的晶核花费（level 从 0 起）。"""
+    return 3 + level * 2

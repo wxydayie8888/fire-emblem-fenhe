@@ -5,12 +5,14 @@
 """
 import copy
 import math
+import random
 
 import pygame
 
 import assets
 import combat
 import config
+import settings
 import guide
 import music
 import records
@@ -79,6 +81,11 @@ class Game:
         self.roster_sel, self.roster_rects = 0, []
         self.shop_sel, self.shop_rects = 0, []
         self.shop_pending = None               # 待选目标的「之种」商品
+        self.tower = False                     # 是否处于试炼之塔
+        self.floor = 0
+        self.tower_mut = None                  # 本层词条
+        self.reward_cards, self.reward_sel, self.reward_rects = [], 0, []
+        self.tower_sel, self.tower_rects = 0, []   # 元强化界面
         self.save_slot = 1                     # 上次手动存档使用的槽
         self.state = 'TITLE'
 
@@ -555,9 +562,13 @@ class Game:
         """火纹式系统菜单：点击空地呼出（结束回合/存读档/选项/回溯）。"""
         sfx.play('select')
         self.map_menu_pos = cell
-        self.menu_items = [('结束回合', True), ('保存进度', True), ('读取进度', True),
-                           ('部队列表', True), ('选项', True),
-                           (f'回溯×{self.undo_left}', self.can_undo())]
+        if self.tower:                          # 试炼中：不可存读档/回溯
+            self.menu_items = [('结束回合', True), ('部队列表', True),
+                               ('选项', True), ('放弃试炼', True)]
+        else:
+            self.menu_items = [('结束回合', True), ('保存进度', True), ('读取进度', True),
+                               ('部队列表', True), ('选项', True),
+                               (f'回溯×{self.undo_left}', self.can_undo())]
         self.menu_sel = 0
         self.state = 'MAP_MENU'
 
@@ -673,6 +684,9 @@ class Game:
             self.open_roster('IDLE')
         elif label == '选项':
             self.open_options('IDLE')
+        elif label == '放弃试炼':
+            sfx.play('cancel')
+            self.tower_defeat()
         elif label.startswith('回溯'):
             sfx.play('confirm')
             self.state = 'IDLE'
@@ -752,6 +766,132 @@ class Game:
         if vis is None:
             vis = self.visible_set()
         return vis is not None and (e.x, e.y) not in vis
+
+    # ---------- 试炼之塔（无尽 roguelite）----------
+
+    def open_tower_hub(self):
+        """标题进入试炼大厅（看最高层/晶核、买永久强化、出发）。"""
+        sfx.play('confirm')
+        self.tower_sel = 0
+        self.state = 'TOWER_META'
+
+    def start_tower(self):
+        """开始一次试炼：组建队伍（叠加永久强化），布阵，刷第 1 层。"""
+        self.tower = True
+        self.floor = 1
+        self.chapter_idx = 0           # 让 self.chapter 安全可访问（不用其胜负/氛围）
+        self.difficulty, self.permadeath, self.gold = 'normal', False, 0
+        up = self.records.get('tower', {})
+        self.roster = []
+        for name, cls in settings.TOWER_ROSTER:
+            u = Unit(name, cls, 'player', (0, 0))
+            for ud in settings.TOWER_UPGRADES:
+                lv = up.get(ud['key'], 0)
+                if lv:
+                    u.apply_boost({ud['stat']: ud['gain'] * lv})
+            self.roster.append(u)
+        self.snapshot = None
+        self.grid = Grid(settings.TOWER_MAP)
+        self.tower_spawn_floor()
+        sfx.play('turn')
+        self.state = 'IDLE'
+
+    def tower_spawn_floor(self):
+        """按层数刷敌：数量/数值随层递增，floor≥2 随机词条，每 5 层首领。"""
+        f = self.floor
+        self._clear_battle_state()
+        self.turn = 1
+        self.undo_stack, self.undo_left, self.pending_undo = [], 0, None
+        self.pending_reinforce, self.reinforce_used = [], set()
+        self.events, self.recruited = [], set()
+        self.boss_quote_shown = True
+        self.tower_mut = random.choice(settings.TOWER_MUTATORS) if f >= 2 else None
+        for u, pos in zip(self.roster, settings.TOWER_PLAYER_POS):
+            u.x, u.y = pos
+            u.acted = False
+            u.refresh_weapon()
+        count = min(len(settings.TOWER_ENEMY_CELLS), 3 + f // 2)
+        boss_floor = (f % settings.TOWER_BOSS_EVERY == 0)
+        base = {'hp': 2 * f, 'pow': f, 'skl': f // 2, 'spd': f // 2, 'dfn': f // 2}
+        enemies = []
+        for i in range(count):
+            is_boss = boss_floor and i == 0
+            cls = 'general' if is_boss else settings.TOWER_POOL[(f + i) % len(settings.TOWER_POOL)]
+            u = Unit(f'F{f}-{i + 1}', cls, 'enemy', settings.TOWER_ENEMY_CELLS[i],
+                     boss=is_boss, ai='aggro')
+            u.apply_boost(base)
+            if is_boss:
+                u.apply_boost({'hp': 3 * f, 'pow': f, 'dfn': f // 2})
+            if self.tower_mut:
+                u.apply_boost(self.tower_mut['boost'])
+            enemies.append(u)
+        self.units = self.roster + enemies
+        mut = f'　词条：{self.tower_mut["name"]}' if self.tower_mut else ''
+        self.show_banner(f'第 {f} 层{mut}', ui.COL_GOLD)
+
+    def tower_after_combat(self):
+        """试炼战斗收尾：清层→奖励，全灭/主将阵亡→结束。"""
+        if not self.alive('enemy'):
+            self.tower_floor_clear()
+        elif not self.lord.alive or not self.alive('player'):
+            self.tower_defeat()
+        elif self.after_combat == 'player':
+            self.finish_unit()
+        else:
+            self.enemy_sub = 'pause'
+            self.pause_t = ENEMY_PAUSE
+            self.state = 'ENEMY_TURN'
+
+    def tower_floor_clear(self):
+        """通过一层：弹三选一奖励。"""
+        sfx.play('victory')
+        self.reward_cards = random.sample(settings.TOWER_REWARDS, 3)
+        self.reward_sel = 0
+        self.state = 'REWARD'
+
+    def apply_tower_reward(self, card):
+        """施用所选奖励，进入下一层。"""
+        k = card['key']
+        if k == 'heal':
+            for u in self.roster:
+                if u.alive:
+                    u.hp = u.max_hp
+        elif k == 'revive':
+            dead = [u for u in self.roster if not u.alive]
+            if dead:
+                dead[0].hp = max(1, dead[0].max_hp // 2)
+        else:
+            for u in self.roster:
+                if u.alive:
+                    u.apply_boost({k: 3 if k == 'hp' else 1})
+        sfx.play('levelup')
+        self.floor += 1
+        self.tower_spawn_floor()
+        self.state = 'IDLE'
+
+    def tower_defeat(self):
+        """试炼结束：记录最高层并发放晶核（=到达层数）。"""
+        sfx.play('defeat')
+        reached = self.floor
+        self.records = records.add_tower_run(reached, reached)
+        self.tower = False
+        self.tower_over_floor = reached
+        self.state = 'TOWER_OVER'
+
+    def buy_tower_upgrade(self, ud):
+        """用晶核购买一级永久强化。"""
+        tower = dict(self.records.get('tower', {}))
+        lv = tower.get(ud['key'], 0)
+        if lv >= ud['max']:
+            sfx.play('cancel')
+            return
+        cost = settings.tower_upgrade_cost(lv)
+        if self.records['crystals'] < cost:
+            sfx.play('cancel')
+            return
+        tower[ud['key']] = lv + 1
+        self.records = records.set_tower_upgrades(tower, self.records['crystals'] - cost)
+        sfx.play('confirm')
 
     def toggle_threat(self, enemy):
         """待机时点击敌人 → 显示/关闭其威胁范围"""
@@ -965,6 +1105,9 @@ class Game:
         return False
 
     def continue_after_combat(self):
+        if self.tower:
+            self.tower_after_combat()
+            return
         if self._chapter_won():
             self.trigger_victory()
             return
@@ -1045,6 +1188,14 @@ class Game:
                 for i, r in enumerate(self.roster_rects):
                     if r.collidepoint(event.pos):
                         self.roster_sel = i
+            elif self.state == 'REWARD':
+                for i, r in enumerate(self.reward_rects):
+                    if r.collidepoint(event.pos):
+                        self.reward_sel = i
+            elif self.state == 'TOWER_META':
+                for i, r in enumerate(self.tower_rects):
+                    if r.collidepoint(event.pos):
+                        self.tower_sel = i
             return
 
         click = event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
@@ -1065,12 +1216,14 @@ class Game:
                     elif i == 2 and any(s['exists'] for s in self.slot_summaries.values()):
                         self.open_slot_menu('load', 'TITLE')
                     elif i == 3:
-                        self.open_options('TITLE')
+                        self.open_tower_hub()
                     elif i == 4:
+                        self.open_options('TITLE')
+                    elif i == 5:
                         sfx.play('confirm')
                         self.codex_sel = 0
                         self.state = 'CODEX'
-                    elif i == 5:
+                    elif i == 6:
                         sfx.play('confirm')
                         self.guide_page = 0
                         self.state = 'GUIDE'
@@ -1296,6 +1449,50 @@ class Game:
                         self.roster_sel = i
                         self.apply_seed(party[i])
                         return
+            return
+        if self.state == 'REWARD':
+            n = len(self.reward_cards)
+            if key in (pygame.K_LEFT, pygame.K_UP):
+                self.reward_sel = (self.reward_sel - 1) % n
+                sfx.play('select')
+            elif key in (pygame.K_RIGHT, pygame.K_DOWN):
+                self.reward_sel = (self.reward_sel + 1) % n
+                sfx.play('select')
+            elif key in (pygame.K_RETURN, pygame.K_SPACE):
+                self.apply_tower_reward(self.reward_cards[self.reward_sel])
+            elif click:
+                for i, r in enumerate(self.reward_rects):
+                    if r.collidepoint(event.pos):
+                        self.apply_tower_reward(self.reward_cards[i])
+                        return
+            return
+        if self.state == 'TOWER_META':
+            rclick = event.type == pygame.MOUSEBUTTONDOWN and event.button == 3
+            n = len(settings.TOWER_UPGRADES)
+            if key == pygame.K_ESCAPE or rclick:
+                sfx.play('cancel')
+                self.state = 'TITLE'
+            elif key in (pygame.K_UP, pygame.K_DOWN):
+                self.tower_sel = (self.tower_sel + (1 if key == pygame.K_DOWN else -1)) % (n + 1)
+                sfx.play('select')
+            elif key in (pygame.K_RETURN, pygame.K_SPACE):
+                if self.tower_sel == n:
+                    self.start_tower()
+                else:
+                    self.buy_tower_upgrade(settings.TOWER_UPGRADES[self.tower_sel])
+            elif click:
+                for i, r in enumerate(self.tower_rects):
+                    if r.collidepoint(event.pos):
+                        if i == n:
+                            self.start_tower()
+                        else:
+                            self.tower_sel = i
+                            self.buy_tower_upgrade(settings.TOWER_UPGRADES[i])
+                        return
+            return
+        if self.state == 'TOWER_OVER':
+            if click or key in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_ESCAPE):
+                self.full_reset()
             return
         if self.state == 'CLEAR':
             if click or key in (pygame.K_RETURN, pygame.K_SPACE):
@@ -1548,7 +1745,8 @@ class Game:
             self.dialogue_t += dt      # 逐字显示计时
         if self.state in ('TITLE', 'INTRO', 'COMPLETE', 'PROLOGUE', 'DIALOGUE',
                           'CODEX', 'DETAIL', 'GUIDE', 'CONVO', 'NEWGAME', 'OPTIONS',
-                          'SAVE_MENU', 'LOAD_MENU', 'ROSTER', 'SHOP', 'SHOP_PICK'):
+                          'SAVE_MENU', 'LOAD_MENU', 'ROSTER', 'SHOP', 'SHOP_PICK',
+                          'REWARD', 'TOWER_META', 'TOWER_OVER'):
             return
         if (self.ff or config.get('skip_anim')) and self.state in ('ENEMY_TURN', 'COMBAT'):
             dt *= 3                    # 空格按住 / 选项「跳过战斗动画」：快进
@@ -1676,6 +1874,7 @@ class Game:
             items = [('新游戏', True),
                      ('继续游戏', self.save_data is not None),
                      ('读取存档', any(s['exists'] for s in self.slot_summaries.values())),
+                     ('试炼之塔', True),
                      ('选项设置', True),
                      ('人物图鉴', True),
                      ('攻略看板', True)]
@@ -1718,6 +1917,15 @@ class Game:
             item = self.shop_pending or {}
             ui.draw_text_center(surf, f'选择强化对象 — {item.get("name", "")}', 22, 18)
             self.roster_rects = ui.draw_roster(surf, self.roster, self.roster_sel)
+            return
+        if self.state == 'TOWER_META':
+            self.tower_rects = ui.draw_tower_meta(
+                surf, self.records, settings.TOWER_UPGRADES,
+                settings.tower_upgrade_cost, self.tower_sel,
+                bg=assets.cinema('keyart_title'))
+            return
+        if self.state == 'TOWER_OVER':
+            ui.draw_tower_over(surf, self.tower_over_floor, self.records)
             return
         if self.state == 'COMPLETE':
             ui.draw_complete(surf, self.roster, story.FATES)
@@ -1875,23 +2083,29 @@ class Game:
                       if self.hover and self.grid.in_bounds(*self.hover) else None)
         ui.draw_info(surf, info_unit, terrain_ch)
         ui.draw_help(surf)
-        obj = self.chapter['objective']
-        if self.chapter['win'] == 'defend':
-            remain = max(0, self.chapter['hold_turns'] - self.turn + 1)
-            obj = f'{obj}（剩 {remain} 回合）'
-        obj += f'　·　敌 {len(self.alive("enemy"))}'
-        obj += f'　·　军资 {self.gold}'
-        if self.seals > 0:
-            obj += f'　·　转职证 ×{self.seals}'
-        wh = self.weather_hit()
-        if wh:
-            obj += f'　·　天气 命中-{wh}'
-        if self.fog_radius():
-            obj += '　·　迷雾'
-        tag = DIFFICULTY[self.difficulty]['label']
-        if self.permadeath:
-            tag += '·经典'
-        ui.draw_objective(surf, self.turn, obj, tag=tag)
+        if self.tower:
+            obj = f'歼灭全部敌人　·　敌 {len(self.alive("enemy"))}'
+            if self.tower_mut:
+                obj += f'　·　词条：{self.tower_mut["name"]}'
+            ui.draw_objective(surf, self.turn, obj, tag=f'试炼 第{self.floor}层')
+        else:
+            obj = self.chapter['objective']
+            if self.chapter['win'] == 'defend':
+                remain = max(0, self.chapter['hold_turns'] - self.turn + 1)
+                obj = f'{obj}（剩 {remain} 回合）'
+            obj += f'　·　敌 {len(self.alive("enemy"))}'
+            obj += f'　·　军资 {self.gold}'
+            if self.seals > 0:
+                obj += f'　·　转职证 ×{self.seals}'
+            wh = self.weather_hit()
+            if wh:
+                obj += f'　·　天气 命中-{wh}'
+            if self.fog_radius():
+                obj += '　·　迷雾'
+            tag = DIFFICULTY[self.difficulty]['label']
+            if self.permadeath:
+                tag += '·经典'
+            ui.draw_objective(surf, self.turn, obj, tag=tag)
 
         if self.state == 'MENU':
             px = (self.selected.x + 1) * CELL + 4
@@ -1911,6 +2125,9 @@ class Game:
                                 story.BIOS.get(self.detail_unit.name))
         elif self.state == 'ROSTER':
             self.roster_rects = ui.draw_roster(surf, self.alive('player'), self.roster_sel)
+        elif self.state == 'REWARD':
+            self.reward_rects = ui.draw_reward(surf, self.reward_cards,
+                                               self.reward_sel, self.floor)
 
         if self.ff and self.state in ('ENEMY_TURN', 'COMBAT'):
             ui.draw_ff_indicator(surf)
