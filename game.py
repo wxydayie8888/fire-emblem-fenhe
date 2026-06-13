@@ -1056,6 +1056,20 @@ class Game:
 
     # ---------- 绘制 ----------
 
+    def _draw_terrain(self, surf, rows, wf):
+        """FE 式分层渲染：森林/山/要塞画统一草地底再叠物件，余者照常；最后描浪沿。"""
+        for y in range(GRID_H):
+            for x in range(GRID_W):
+                ch = rows[y][x]
+                obj = assets.terrain_object(ch, x, y)
+                base = 'P' if obj is not None else ch
+                variant = 1 if (ch == 'B' and x > 0 and rows[y][x - 1] == 'B') else 0
+                surf.blit(assets.terrain_sprite(base, wf, variant, cell=(x, y)),
+                          (x * CELL, y * CELL))
+                if obj is not None:
+                    surf.blit(obj, (x * CELL, y * CELL))
+        self._draw_shorelines(surf, rows)
+
     def _draw_shorelines(self, surf, rows):
         """水格朝向陆地的边描一道浅沙色浪沿，软化草水直角接缝。"""
         b = 5
@@ -1127,10 +1141,7 @@ class Game:
         if self.state == 'INTRO':
             rows = self.chapter['map']      # 本章地图做暗化背景
             wf = int(self.time * 1.6) % 2
-            for y in range(GRID_H):
-                for x in range(GRID_W):
-                    surf.blit(assets.terrain_sprite(rows[y][x], wf, cell=(x, y)),
-                              (x * CELL, y * CELL))
+            self._draw_terrain(surf, rows, wf)
             pygame.draw.rect(surf, (16, 14, 24), (0, GRID_H * CELL, GRID_W * CELL, 100))
             ui.draw_intro(surf, self.chapter_idx, self.chapter, backdrop=True)
             return
@@ -1163,13 +1174,7 @@ class Game:
 
         water_frame = int(self.time * 1.6) % 2
         rows = self.grid.rows
-        for y in range(GRID_H):
-            for x in range(GRID_W):
-                ch = rows[y][x]
-                variant = 1 if (ch == 'B' and x > 0 and rows[y][x - 1] == 'B') else 0
-                surf.blit(assets.terrain_sprite(ch, water_frame, variant, cell=(x, y)),
-                          (x * CELL, y * CELL))
-        self._draw_shorelines(surf, rows)
+        self._draw_terrain(surf, rows, water_frame)
 
         if self.threat_all and self.state in ('IDLE', 'MOVE'):
             self._danger_tiles = self.all_threat_tiles()

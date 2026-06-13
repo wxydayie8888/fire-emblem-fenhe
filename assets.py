@@ -217,6 +217,28 @@ def terrain_variation(x, y):
     return (x * 3 + y * 7) % 4
 
 
+# FE 式地形层次感：森林/山/要塞不再是整格贴图，而是「统一草地底 + 物件叠加」，
+# 草从物件四周透出、物件带落地投影 —— 与平地连成一片，消除拼接感。
+OBJECT_TERRAIN = {'F': ('tree', 'pine'), 'M': ('mountain',), 'T': ('fort',)}
+_hd_object = {}
+
+
+def terrain_object(ch, x=0, y=0):
+    """叠在草地上的地形物件（CELL×CELL，含投影）。非物件地形或缺图返回 None。"""
+    if not HD_MAP:
+        return None
+    names = OBJECT_TERRAIN.get(ch)
+    if not names:
+        return None
+    name = names[(x * 2 + y) % len(names)] if len(names) > 1 else names[0]
+    if name not in _hd_object:
+        img = _load_hd('objects', name)
+        if img is not None and img.get_size() != (CELL, CELL):
+            img = pygame.transform.scale(img, (CELL, CELL))
+        _hd_object[name] = img
+    return _hd_object[name]
+
+
 def hd_unit(cls):
     """HD 单位 token（CELL×CELL，居中、已抠图）。缺失返回 None。"""
     if not HD_MAP:
