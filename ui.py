@@ -531,6 +531,9 @@ def draw_unit_detail(surf, unit, bio):
     rng = f'{lo}' if lo == hi else f'{lo}-{hi}'
     _text(surf, f'武器：{w["name"]}（威力{w["might"]} 命中{w["hit"]} 射程{rng}）', 15,
           (p.x + 158, p.y + 120), COL_DIM)
+    sk = CLASSES[unit.cls].get('skill')
+    if sk:
+        _text(surf, f'职业技：{sk["name"]}', 15, (p.x + 158, p.y + 144), COL_GOLD)
     y = p.y + 168
     _text(surf, '当前能力', 15, (p.x + 34, y), COL_GOLD)
     y += 28

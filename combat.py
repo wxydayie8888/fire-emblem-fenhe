@@ -14,21 +14,34 @@ def triangle(att_w, def_w):
     return 0, 0
 
 
-def calc_damage(att, dfd):
+def _skill(u):
+    """单位职业技 dict（Unit.skill() 或空）。兼容无 skill 方法的对象。"""
+    fn = getattr(u, 'skill', None)
+    return fn() if callable(fn) else {}
+
+
+def calc_damage(att, dfd, sup_dmg=0):
+    """sup_dmg: 攻方支援伤害加成。职业技：攻方魔力、守方额外防御自动计入。"""
     d, _ = triangle(att.weapon, dfd.weapon)
-    return max(0, att.pow + WEAPONS[att.weapon]['might'] + d - dfd.dfn)
+    raw = (att.pow + WEAPONS[att.weapon]['might'] + d
+           + _skill(att).get('pow', 0) + sup_dmg
+           - dfd.dfn - _skill(dfd).get('dfn', 0))
+    return max(0, raw)
 
 
-def calc_hit(att, dfd, def_avoid_bonus):
-    """def_avoid_bonus: 守方所站地形的回避加成"""
+def calc_hit(att, dfd, def_avoid_bonus, sup_hit=0, sup_avoid=0):
+    """def_avoid_bonus: 守方地形回避；sup_hit/sup_avoid: 双方支援加成。
+    职业技：攻方命中、守方回避自动计入。"""
     _, h = triangle(att.weapon, dfd.weapon)
     hit = (WEAPONS[att.weapon]['hit'] + att.skl * 2 + h
-           - (dfd.spd * 2 + def_avoid_bonus))
+           + _skill(att).get('hit', 0) + sup_hit
+           - (dfd.spd * 2 + def_avoid_bonus
+              + _skill(dfd).get('avoid', 0) + sup_avoid))
     return max(0, min(100, hit))
 
 
-def calc_crit(att):
-    return WEAPONS[att.weapon]['crit'] + att.skl // 2
+def calc_crit(att, sup_crit=0):
+    return WEAPONS[att.weapon]['crit'] + att.skl // 2 + _skill(att).get('crit', 0) + sup_crit
 
 
 def can_attack(unit):
@@ -37,9 +50,9 @@ def can_attack(unit):
 
 
 def heal_amount(healer):
-    """治疗杖回复量 = 基础值 + 力量。"""
+    """治疗回复量 = 基础值 + 力量 + 职业技治疗加成（主教祈祷）。"""
     from settings import STAFF_BASE_HEAL
-    return STAFF_BASE_HEAL + healer.pow
+    return STAFF_BASE_HEAL + healer.pow + _skill(healer).get('heal_bonus', 0)
 
 
 def in_range(unit, dist):
@@ -90,6 +103,9 @@ def resolve(att, dfd, dist, att_avoid, def_avoid, rng=random.random):
         hit = rng() * 100 < calc_hit(actor, target, t_avoid)
         crit = bool(hit) and rng() * 100 < calc_crit(actor)
         dmg = calc_damage(actor, target) * (CRIT_MULT if crit else 1) if hit else 0
+        shield = _skill(target).get('shield', 0)   # 大盾：几率半伤
+        if dmg > 0 and shield and rng() < shield:
+            dmg -= dmg // 2
         target.hp = max(0, target.hp - dmg)
         events.append({'actor': actor, 'target': target,
                        'dmg': dmg, 'hit': hit, 'crit': crit})

@@ -89,3 +89,60 @@ def test_breath_weapon_range():
     assert combat.in_range(dragon, 1) and combat.in_range(dragon, 2)
     assert not combat.in_range(dragon, 3)
     assert combat.calc_damage(dragon, Unit('R', 'lord', 'player', (1, 0))) > 0
+
+
+def promoted(base, **kw):
+    from unit import Unit
+    u = Unit('x', base, 'player', (0, 0))
+    u.level = 12
+    u.promote()
+    for k, v in kw.items():
+        setattr(u, k, v)
+    return u
+
+
+def test_skill_crit_bonuses():
+    sm = promoted('myrmidon')          # 剑圣 必杀+20
+    base = sm.skl // 2 + combat.WEAPONS[sm.weapon]['crit']
+    assert combat.calc_crit(sm) == base + 20
+    sn = promoted('archer')            # 神射手 必杀+15
+    assert combat.calc_crit(sn) == sn.skl // 2 + combat.WEAPONS['bow']['crit'] + 15
+
+
+def test_skill_hit_and_avoid():
+    from unit import Unit
+    # 圣骑士命中+12：与同 skl 的未转职重骑士(同为枪、无技能)对照
+    pal = promoted('cavalier', skl=8)
+    plain = Unit('对照', 'cavalier', 'player', (0, 0)); plain.skl = 8
+    f = fighter()
+    assert combat.calc_hit(pal, f, 0) == min(100, combat.calc_hit(plain, f, 0) + 12)
+    # 天马将军回避+15：与同 spd 的未转职天马(同为枪、无技能)对照
+    fal = promoted('pegasus')
+    plain_peg = Unit('对照', 'pegasus', 'player', (0, 0)); plain_peg.spd = fal.spd
+    atk = fighter(skl=20)
+    assert combat.calc_hit(atk, fal, 0) == max(0, combat.calc_hit(atk, plain_peg, 0) - 15)
+
+
+def test_skill_sage_power_and_defender_dfn():
+    sage = promoted('mage')            # 贤者 魔力+2
+    f = fighter(dfn=0)
+    dmg = combat.calc_damage(sage, f)
+    assert dmg == sage.pow + combat.WEAPONS['magic']['might'] + 2     # 魔法不吃三角
+
+
+def test_skill_bishop_heal_bonus():
+    bishop = promoted('cleric')        # 主教 祈祷 治疗+5
+    from settings import STAFF_BASE_HEAL
+    assert combat.heal_amount(bishop) == STAFF_BASE_HEAL + bishop.pow + 5
+
+
+def test_skill_great_shield_halves_damage():
+    from unit import Unit
+    marshal = promoted('knight')       # 将军 大盾 50% 半伤
+    atk = Unit('弓手', 'archer', 'player', (0, 0)); atk.pow = 30   # 弓 2 格，将军无法反击
+    marshal.hp = marshal.max_hp
+    full = combat.calc_damage(atk, marshal)
+    assert full > 2
+    seq = iter([0.0, 0.99, 0.0])       # 命中 / 不必杀 / 大盾触发
+    combat.resolve(atk, marshal, 2, 0, 0, rng=lambda: next(seq))
+    assert marshal.max_hp - marshal.hp == full - full // 2     # 半伤
