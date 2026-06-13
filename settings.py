@@ -1,13 +1,13 @@
 """全部数值常量：尺寸、地形、武器、职业、章节数据、规则参数。"""
 
-# --- 尺寸 ---
-TILE = 16          # 素材原始像素
-SCALE = 3
-CELL = TILE * SCALE                  # 48px 格子
+# --- 尺寸（桌面版 HD：64px 格子）---
+TILE = 16          # DawnLike 素材原始像素（回退用）
+SCALE = 4
+CELL = 64                            # 64px 格子（桌面版）
 GRID_W, GRID_H = 15, 10
-INFO_H = 100                         # 底部信息栏高度
-SCREEN_W = GRID_W * CELL             # 720
-SCREEN_H = GRID_H * CELL + INFO_H    # 580
+INFO_H = 140                         # 底部信息栏高度
+SCREEN_W = GRID_W * CELL             # 960
+SCREEN_H = GRID_H * CELL + INFO_H    # 780
 FPS = 60
 
 # --- 地形: 回避加成 / 移动消耗(None=不可通行) / 回合回血比例 ---

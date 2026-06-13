@@ -97,18 +97,29 @@ def draw_info(surf, unit, terrain_ch):
     pygame.draw.rect(surf, COL_PANEL, (0, y0, SCREEN_W, INFO_H))
     pygame.draw.line(surf, COL_BORDER, (0, y0), (SCREEN_W, y0), 2)
     if unit is not None:
+        import assets as _assets
+        pic = _assets.portrait(unit.name)
+        tx = 24
+        if pic is not None:                      # 信息栏左侧小头像
+            surf.blit(_fit(pic, INFO_H - 24), (16, y0 + 12))
+            tx = 16 + (INFO_H - 24) + 18
         color = COL_PLAYER if unit.team == 'player' else COL_ENEMY
-        _text(surf, unit.name, 22, (16, y0 + 10), color)
-        _text(surf, f'{unit.cls_name}  Lv{unit.level}  EXP {unit.exp}', 15, (16, y0 + 42), COL_DIM)
-        _text(surf, f'HP {unit.hp}/{unit.max_hp}', 17, (16, y0 + 66))
-        stats = f'力量{unit.pow} 技巧{unit.skl} 速度{unit.spd} 防御{unit.dfn} 移动{unit.mov}'
-        _text(surf, stats, 16, (190, y0 + 66))
+        _text(surf, unit.name, 24, (tx, y0 + 12), color)
+        _text(surf, f'{unit.cls_name}  Lv{unit.level}  EXP {unit.exp}', 16, (tx, y0 + 48), COL_DIM)
+        _text(surf, f'HP {unit.hp}/{unit.max_hp}', 18, (tx, y0 + 78))
+        cx = tx + 200
         w = WEAPONS[unit.weapon]
         lo, hi = w['range']
         rng = f'{lo}' if lo == hi else f'{lo}-{hi}'
-        _text(surf, f'{w["name"]}  威力{w["might"]} 命中{w["hit"]} 射程{rng}', 16, (190, y0 + 40))
-        if unit.team == 'player':
-            _text(surf, f'伤药 ×{unit.potions}', 15, (430, y0 + 12), (120, 220, 120))
+        _text(surf, f'{w["name"]}  威力{w["might"]} 命中{w["hit"]} 射程{rng}', 17, (cx, y0 + 14))
+        stats = f'力量{unit.pow} 技巧{unit.skl} 速度{unit.spd} 防御{unit.dfn} 移动{unit.mov}'
+        _text(surf, stats, 17, (cx, y0 + 48))
+        sk = CLASSES[unit.cls].get('skill')
+        line = f'伤药 ×{unit.potions}' if unit.team == 'player' else ''
+        if sk:
+            line += ('　·　' if line else '') + f'职业技 {sk["name"]}'
+        if line:
+            _text(surf, line, 15, (cx, y0 + 80), (120, 220, 120))
     if terrain_ch is not None:
         t = TERRAIN[terrain_ch]
         cost = '不可通行' if t['cost'] is None else f'移动消耗 {t["cost"]}'
@@ -120,9 +131,8 @@ def draw_info(surf, unit, terrain_ch):
 
 
 def draw_help(surf):
-    y0 = GRID_H * CELL
-    _text(surf, '左键选择 右键取消 Tab下一单位 D危险范围 Z回溯 空格快进 I详情 E结束回合', 13,
-          (SCREEN_W - 580, y0 + 84), (110, 110, 125))
+    _text(surf, '左键选择 · 右键取消 · Tab下一单位 · D危险范围 · Z回溯 · 空格快进 · I详情 · E结束回合',
+          13, (SCREEN_W // 2, SCREEN_H - 16), (110, 110, 125), center=True)
 
 
 def draw_danger_mark(surf, px, py):
