@@ -14,6 +14,13 @@
 |---|---|---|
 | ![屠龙](docs/images/screenshot-dragon.png) | ![防守](docs/images/screenshot-defend.png) | ![城堡](docs/images/screenshot-castle.png) |
 
+## 🎬 前情提要短片
+
+[▶ 观看《芬河战记·前情提要》（24s, 1080p）](docs/media/芬河战记-前情提要.mp4)
+
+由 LibTV（Seedance 2.0）将五张 AI 场景原画逐镜活化（麦浪、火焰、龙眼睁开、黎明行军、
+英雄列阵），ffmpeg 交叉溶解拼接、中文字幕逐幕浮现、终幕金色标题渐显，带氛围音效。
+
 ## 安装与启动
 
 ```bash
