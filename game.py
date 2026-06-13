@@ -1943,10 +1943,20 @@ class Game:
             self.title_rects = ui.draw_title_menu(surf, items, summary,
                                                   bg=assets.cinema('keyart_title'))
             r = self.records
-            if r['clears'] or r['kills']:
-                best = f' ｜ 最佳 {r["best_turns"]} 回合' if r['best_turns'] else ''
-                ui.draw_records_line(
-                    surf, f'通关 {r["clears"]} 周目 ｜ 累计击破 {r["kills"]}{best}')
+            parts = []
+            if r['clears']:
+                parts.append(f'通关 {r["clears"]} 周目')
+            if r['kills']:
+                parts.append(f'击破 {r["kills"]}')
+            if r.get('best_turns'):
+                parts.append(f'最佳 {r["best_turns"]} 回合')
+            sr = records.s_rank_count(r)
+            if sr:
+                parts.append(f'★ S评定 ×{sr}')
+            if r.get('best_floor'):
+                parts.append(f'试炼 第{r["best_floor"]}层')
+            if parts:
+                ui.draw_records_line(surf, ' ｜ '.join(parts))
             return
         if self.state == 'INTRO':
             rows = self.chapter['map']      # 本章地图做暗化背景
@@ -2185,6 +2195,7 @@ class Game:
             ui.draw_banner(surf, self.banner['text'], self.banner['t'], self.banner['color'])
         if self.state == 'CLEAR':
             ui.draw_clear(surf, self.chapter_idx, self.chapter['title'], self.turn,
-                          grade=self.last_grade, deaths=self.last_clear_deaths)
+                          grade=self.last_grade, deaths=self.last_clear_deaths,
+                          t=self.time)
         elif self.state == 'END':
             ui.draw_defeat(surf, self.can_undo())

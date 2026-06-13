@@ -369,25 +369,43 @@ def draw_intro(surf, idx, ch, backdrop=False, gold=None, best_grade=None):
 
 _GRADE_COLOR = {'S': (255, 215, 90), 'A': (130, 220, 255),
                 'B': (170, 235, 150), 'C': (210, 180, 170)}
+_GRADE_STARS = {'S': 3, 'A': 2, 'B': 1, 'C': 0}
 
 
-def draw_clear(surf, idx, title, turns, grade=None, deaths=0):
+def _star(surf, cx, cy, r, color):
+    pts = []
+    for i in range(10):
+        ang = -math.pi / 2 + i * math.pi / 5
+        rr = r if i % 2 == 0 else r * 0.42
+        pts.append((cx + rr * math.cos(ang), cy + rr * math.sin(ang)))
+    pygame.draw.polygon(surf, color, pts)
+
+
+def draw_clear(surf, idx, title, turns, grade=None, deaths=0, t=0.0):
     veil = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-    veil.fill((10, 10, 16, 180))
+    veil.fill((10, 10, 16, 184))
     surf.blit(veil, (0, 0))
     cy = GRID_H * CELL // 2
     num = '一二三四五六七八九十'[idx]
-    _text(surf, '制 压 ！', 50, (SCREEN_W // 2, cy - 96), COL_GOLD, center=True)
+    _text(surf, '制 压 ！', 50, (SCREEN_W // 2, cy - 110), COL_GOLD, center=True)
     if grade:
         col = _GRADE_COLOR.get(grade, COL_TEXT)
-        _text(surf, '评 定', 16, (SCREEN_W // 2, cy - 44), COL_DIM, center=True)
-        _text(surf, grade, 80, (SCREEN_W // 2, cy + 8), col, center=True)
+        n = _GRADE_STARS.get(grade, 0)
+        for i in range(n):                              # 星星排（S=3/A=2/B=1）
+            x = SCREEN_W // 2 + (i - (n - 1) / 2) * 46
+            pulse = 1 + 0.12 * math.sin(t * 3 + i)
+            _star(surf, x, cy - 52, 16 * pulse, col)
+        if grade == 'S':                                # S：金色光晕
+            glow = pygame.Surface((180, 180), pygame.SRCALPHA)
+            pygame.draw.circle(glow, (255, 215, 90, 40), (90, 90), 80)
+            surf.blit(glow, (SCREEN_W // 2 - 90, cy - 10))
+        _text(surf, grade, 84, (SCREEN_W // 2, cy + 14), col, center=True)
         info = f'用时 {turns} 回合 · ' + ('全员生还' if deaths == 0 else f'{deaths} 人阵亡')
-        _text(surf, info, 17, (SCREEN_W // 2, cy + 64), COL_TEXT, center=True)
+        _text(surf, info, 17, (SCREEN_W // 2, cy + 72), COL_TEXT, center=True)
     else:
         _text(surf, f'第{num}章「{title}」 用时 {turns} 回合', 20,
               (SCREEN_W // 2, cy + 10), COL_TEXT, center=True)
-    _text(surf, '点击继续', 15, (SCREEN_W // 2, cy + 100), COL_DIM, center=True)
+    _text(surf, '点击继续', 15, (SCREEN_W // 2, cy + 108), COL_DIM, center=True)
 
 
 def draw_complete(surf, roster, fates):
