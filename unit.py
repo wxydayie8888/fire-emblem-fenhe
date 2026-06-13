@@ -1,7 +1,8 @@
 """单位：属性、经验、升级。纯逻辑，零 pygame 依赖。"""
 import random
 
-from settings import CLASSES, WEAPONS, EXP_LEVEL, POTION_HEAL, POTION_USES
+from settings import (CLASSES, WEAPONS, EXP_LEVEL, POTION_HEAL, POTION_USES,
+                      PROMOTIONS, PROMOTE_LEVEL)
 
 STATS = ('hp', 'pow', 'skl', 'spd', 'dfn')
 # 存档只保留可变属性；mov/weapon/growth/mounted 由职业表派生
@@ -38,6 +39,37 @@ class Unit:
     @property
     def weapon_range(self):
         return WEAPONS[self.weapon]['range']
+
+    def skill(self):
+        """职业技 dict（无则空）。"""
+        return CLASSES[self.cls].get('skill', {})
+
+    def can_heal(self):
+        """能否使用治疗（修女/贤者/主教）。"""
+        return CLASSES[self.cls].get('heal', False)
+
+    def is_promoted(self):
+        return CLASSES[self.cls].get('tier', 1) >= 2
+
+    def can_promote(self):
+        return (self.cls in PROMOTIONS and not self.is_promoted()
+                and self.level >= PROMOTE_LEVEL)
+
+    def promote(self):
+        """转职为高级职：切换职业、叠加属性增益、回满 HP。成功返回 True。"""
+        if not self.can_promote():
+            return False
+        adv, gains = PROMOTIONS[self.cls]
+        self.apply_boost(gains)
+        self.cls = adv
+        c = CLASSES[adv]
+        self.weapon = c['weapon']
+        self.mov = c['mov']
+        self.mounted = c.get('mounted', False)
+        self.fly = c.get('fly', False)
+        self.growth = c['growth']
+        self.hp = self.max_hp
+        return True
 
     def gain_exp(self, amount, rng=random.random):
         """增加经验，满 EXP_LEVEL 升级（可连升）。返回每次升级的成长 dict 列表。"""

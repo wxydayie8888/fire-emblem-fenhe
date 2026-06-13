@@ -39,6 +39,7 @@ class Game:
         """回到标题画面，重建战役。"""
         self.chapter_idx = 0
         self.camp_turns = 0            # 本周目累计回合（战绩用）
+        self.seals = 0                # 转职证存量
         self.roster = [Unit(s['name'], s['cls'], 'player', (0, 0)) for s in PLAYER_ROSTER]
         self.snapshot = None
         self.units = []
@@ -117,6 +118,7 @@ class Game:
         sd = self.save_data
         self.chapter_idx = sd['chapter_idx']
         self.camp_turns = sd.get('camp_turns', 0)
+        self.seals = sd.get('seals', 0)
         if sd.get('kind') == 'battle':
             self.restore_battle(sd)
         else:
@@ -140,6 +142,7 @@ class Game:
             'chapter_idx': self.chapter_idx,
             'turn': self.turn,
             'camp_turns': self.camp_turns,
+            'seals': self.seals,
             'boss_quote_shown': self.boss_quote_shown,
             'reinforce_used': sorted(self.reinforce_used),
             'pending_reinforce': list(self.pending_reinforce),
@@ -163,6 +166,7 @@ class Game:
         self.turn = sd['turn']
         self.camp_turns = sd.get('camp_turns', self.camp_turns)
         self.boss_quote_shown = sd['boss_quote_shown']
+        self.seals = sd.get('seals', self.seals)
         self.reinforce_used = set(sd['reinforce_used'])
         self.pending_reinforce = list(sd['pending_reinforce'])
 
@@ -243,7 +247,7 @@ class Game:
         if not retry:
             self.snapshot = copy.deepcopy(self.roster)
             save.save_game(self.chapter_idx, [u.to_dict() for u in self.roster],
-                           camp_turns=self.camp_turns)
+                           camp_turns=self.camp_turns, seals=self.seals)
         enemies = []
         for e in ch['enemies']:
             u = Unit(e['name'], e['cls'], 'enemy', e['pos'],
@@ -274,9 +278,10 @@ class Game:
     def chapter_clear(self):
         sfx.play('victory')
         self.camp_turns += self.turn
+        self.seals += 1               # 每章通关获得 1 枚转职证
         if self.chapter_idx + 1 < len(CHAPTERS):
             save.save_game(self.chapter_idx + 1, [u.to_dict() for u in self.roster],
-                           camp_turns=self.camp_turns)
+                           camp_turns=self.camp_turns, seals=self.seals)
         else:
             save.delete_save()         # 通关删档
         self.state = 'CLEAR'
@@ -441,8 +446,8 @@ class Game:
                 if lo <= manhattan((unit.x, unit.y), (u.x, u.y)) <= hi]
 
     def heal_targets_from(self, unit):
-        """治疗杖目标：相邻的受伤友军。"""
-        if combat.can_attack(unit):
+        """治疗目标：相邻的受伤友军（仅 can_heal 的单位）。"""
+        if not unit.can_heal():
             return []
         return [u for u in self.alive('player')
                 if u is not unit and u.hp < u.max_hp
@@ -456,12 +461,26 @@ class Game:
         self.menu_items = []
         if combat.can_attack(u):
             self.menu_items.append(('攻击', bool(self.targets)))
-        else:
+        if u.can_heal():
             self.menu_items.append(('治疗', bool(heals)))
+        if u.can_promote() and self.seals > 0:
+            self.menu_items.append(('转职', True))
         self.menu_items += [('用药', u.potions > 0 and u.hp < u.max_hp),
                             ('待机', True)]
         self.menu_sel = 0
         self.state = 'MENU'
+
+    def do_promote(self, unit):
+        """执行转职：消耗转职证，切换高级职，闪光提示，消耗本回合行动。"""
+        self.commit_undo()
+        self.seals -= 1
+        old = unit.cls_name
+        unit.promote()
+        self.flash_t = 0.35
+        sfx.play('levelup')
+        self.add_float('转职!', (unit.x, unit.y), ui.COL_GOLD)
+        self.show_banner(f'{unit.name}  {old} → {unit.cls_name}！', ui.COL_GOLD)
+        self.finish_unit()
 
     def trigger_victory(self):
         post = story.CHAPTER_DIALOGUE[self.chapter_idx]['post']
@@ -795,6 +814,8 @@ class Game:
                         self.target_mode = 'heal'
                         self.targets = self.heal_targets_from(self.selected)
                         self.state = 'TARGET'
+                    elif label == '转职':
+                        self.do_promote(self.selected)
                     elif label == '用药':
                         self.commit_undo()
                         healed = self.selected.use_potion()
@@ -1149,6 +1170,8 @@ class Game:
         if self.chapter['win'] == 'defend':
             remain = max(0, self.chapter['hold_turns'] - self.turn + 1)
             obj = f'{obj}（剩 {remain} 回合）'
+        if self.seals > 0:
+            obj += f'　·　转职证 ×{self.seals}'
         ui.draw_objective(surf, self.turn, obj)
 
         if self.state == 'MENU':

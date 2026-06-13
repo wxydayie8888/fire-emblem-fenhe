@@ -12,7 +12,7 @@ from unit import SAVE_FIELDS
 
 from paths import user_data_dir
 
-SAVE_VERSION = 4      # v4: 支持战斗中挂起存档（kind: chapter / battle）
+SAVE_VERSION = 5      # v5: 转职系统（高级职 + 转职证）
 SAVE_PATH = user_data_dir() / 'save.json'
 
 # 合法角色名 = 基础队伍 + 各章 join
@@ -27,11 +27,11 @@ def _atomic_write(data, path):
     os.replace(tmp, path)
 
 
-def save_game(chapter_idx, roster_dicts, camp_turns=0, path=SAVE_PATH):
+def save_game(chapter_idx, roster_dicts, camp_turns=0, seals=0, path=SAVE_PATH):
     """章节开局/通关存档。"""
     _atomic_write({'version': SAVE_VERSION, 'kind': 'chapter',
                    'chapter_idx': chapter_idx, 'camp_turns': camp_turns,
-                   'roster': roster_dicts}, path)
+                   'seals': seals, 'roster': roster_dicts}, path)
 
 
 def save_battle(payload, path=SAVE_PATH):
@@ -59,7 +59,7 @@ def _valid_roster(roster, legal_names=True):
     """章节存档的队伍列表校验（SAVE_FIELDS、首位领主、名字合法不重复）。"""
     if not isinstance(roster, list) or not roster:
         return False
-    if roster[0].get('cls') != 'lord':          # Game.lord = roster[0] 的硬依赖
+    if roster[0].get('cls') not in ('lord', 'great_lord'):   # Game.lord = roster[0]（领主或其转职）
         return False
     seen = set()
     for d in roster:
@@ -106,7 +106,8 @@ def _validate(data):
         if not isinstance(data.get('turn'), int) or data['turn'] < 1:
             return False
         meta = data.get('roster_meta')
-        if not isinstance(meta, list) or not meta or meta[0].get('cls') != 'lord':
+        if (not isinstance(meta, list) or not meta
+                or meta[0].get('cls') not in ('lord', 'great_lord')):
             return False
         if not all(_valid_battle_unit(d, 'player') for d in meta):
             return False

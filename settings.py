@@ -32,6 +32,7 @@ WEAPONS = {
     'magic': {'name': '魔法', 'might': 8, 'hit': 85, 'crit': 5, 'range': (1, 2)},
     'staff': {'name': '杖',   'might': 0, 'hit': 0,  'crit': 0, 'range': (1, 1), 'heal': True},
     'breath': {'name': '吐息', 'might': 12, 'hit': 90, 'crit': 0, 'range': (1, 2)},
+    'light': {'name': '光魔', 'might': 7, 'hit': 90, 'crit': 8, 'range': (1, 2)},  # 主教用
 }
 STAFF_BASE_HEAL = 10   # 治疗量 = 基础 + 力量
 WEAPON_BEATS = {'sword': 'axe', 'axe': 'lance', 'lance': 'sword'}  # 剑克斧 斧克枪 枪克剑
@@ -56,7 +57,7 @@ CLASSES = {
                  'weapon': 'sword',
                  'growth': {'hp': 65, 'pow': 45, 'skl': 65, 'spd': 65, 'dfn': 20}},
     'cleric':   {'name': '修女',   'hp': 18, 'pow': 5,  'skl': 7,  'spd': 8,  'dfn': 3,  'mov': 5,
-                 'weapon': 'staff',
+                 'weapon': 'staff', 'heal': True,
                  'growth': {'hp': 55, 'pow': 40, 'skl': 50, 'spd': 55, 'dfn': 25}},
     'pegasus':  {'name': '天马骑士', 'hp': 20, 'pow': 7, 'skl': 8,  'spd': 11, 'dfn': 5,  'mov': 7,
                  'weapon': 'lance', 'fly': True,
@@ -64,6 +65,35 @@ CLASSES = {
     'knight':   {'name': '重甲兵', 'hp': 26, 'pow': 9,  'skl': 6,  'spd': 4,  'dfn': 11, 'mov': 4,
                  'weapon': 'lance',
                  'growth': {'hp': 80, 'pow': 50, 'skl': 35, 'spd': 25, 'dfn': 55}},
+    # --- 高级职（转职目标；属性由 promote() 按 PROMOTIONS 增益叠加，下列 base 仅供参考）---
+    'great_lord': {'name': '大将', 'hp': 30, 'pow': 10, 'skl': 11, 'spd': 12, 'dfn': 11, 'mov': 6,
+                   'weapon': 'sword', 'tier': 2, 'skill': {'name': '鼓舞', 'aura': True},
+                   'growth': {'hp': 75, 'pow': 50, 'skl': 55, 'spd': 60, 'dfn': 40}},
+    'paladin':  {'name': '圣骑士', 'hp': 30, 'pow': 11, 'skl': 8,  'spd': 9,  'dfn': 11, 'mov': 8,
+                 'weapon': 'lance', 'mounted': True, 'tier': 2,
+                 'skill': {'name': '坚韧', 'hit': 12, 'dfn': 1},
+                 'growth': {'hp': 85, 'pow': 55, 'skl': 45, 'spd': 50, 'dfn': 45}},
+    'sniper':   {'name': '神射手', 'hp': 26, 'pow': 11, 'skl': 14, 'spd': 11, 'dfn': 6,  'mov': 6,
+                 'weapon': 'bow', 'tier': 2, 'skill': {'name': '狙击', 'crit': 15},
+                 'growth': {'hp': 70, 'pow': 45, 'skl': 65, 'spd': 55, 'dfn': 30}},
+    'sage':     {'name': '贤者', 'hp': 24, 'pow': 13, 'skl': 11, 'spd': 11, 'dfn': 6,  'mov': 6,
+                 'weapon': 'magic', 'heal': True, 'tier': 2,
+                 'skill': {'name': '魔导', 'pow': 2},
+                 'growth': {'hp': 60, 'pow': 60, 'skl': 55, 'spd': 55, 'dfn': 25}},
+    'swordmaster': {'name': '剑圣', 'hp': 26, 'pow': 11, 'skl': 16, 'spd': 16, 'dfn': 7, 'mov': 6,
+                    'weapon': 'sword', 'tier': 2, 'skill': {'name': '必杀', 'crit': 20},
+                    'growth': {'hp': 70, 'pow': 50, 'skl': 70, 'spd': 70, 'dfn': 25}},
+    'bishop':   {'name': '主教', 'hp': 24, 'pow': 11, 'skl': 10, 'spd': 11, 'dfn': 6,  'mov': 6,
+                 'weapon': 'light', 'heal': True, 'tier': 2,
+                 'skill': {'name': '祈祷', 'heal_bonus': 5},
+                 'growth': {'hp': 60, 'pow': 50, 'skl': 55, 'spd': 55, 'dfn': 30}},
+    'falcon':   {'name': '天马将军', 'hp': 28, 'pow': 11, 'skl': 12, 'spd': 15, 'dfn': 9, 'mov': 8,
+                 'weapon': 'lance', 'fly': True, 'tier': 2,
+                 'skill': {'name': '疾风', 'avoid': 15},
+                 'growth': {'hp': 65, 'pow': 50, 'skl': 60, 'spd': 65, 'dfn': 35}},
+    'marshal':  {'name': '将军', 'hp': 34, 'pow': 13, 'skl': 8,  'spd': 5,  'dfn': 16, 'mov': 5,
+                 'weapon': 'lance', 'tier': 2, 'skill': {'name': '大盾', 'shield': 0.5},
+                 'growth': {'hp': 85, 'pow': 55, 'skl': 40, 'spd': 30, 'dfn': 60}},
     # 敌方职业（不升级，无成长率）
     'fighter':  {'name': '斧战士', 'hp': 20, 'pow': 7,  'skl': 5,  'spd': 5,  'dfn': 4,  'mov': 5,
                  'weapon': 'axe', 'growth': {}},
@@ -487,6 +517,20 @@ CHAPTERS = [
 
 # 兼容别名（测试用 Grid 默认地图）
 MAP = MAP1
+
+# --- 转职：基础职 -> (高级职, 属性增益) ---
+PROMOTIONS = {
+    'lord':     ('great_lord',  {'hp': 6, 'pow': 3, 'skl': 2, 'spd': 2, 'dfn': 4}),
+    'cavalier': ('paladin',     {'hp': 6, 'pow': 3, 'skl': 1, 'spd': 1, 'dfn': 3}),
+    'archer':   ('sniper',      {'hp': 5, 'pow': 3, 'skl': 4, 'spd': 2, 'dfn': 2}),
+    'mage':     ('sage',        {'hp': 5, 'pow': 4, 'skl': 3, 'spd': 2, 'dfn': 3}),
+    'myrmidon': ('swordmaster', {'hp': 5, 'pow': 3, 'skl': 4, 'spd': 4, 'dfn': 2}),
+    'cleric':   ('bishop',      {'hp': 5, 'pow': 5, 'skl': 3, 'spd': 2, 'dfn': 3}),
+    'pegasus':  ('falcon',      {'hp': 6, 'pow': 3, 'skl': 3, 'spd': 3, 'dfn': 3}),
+    'knight':   ('marshal',     {'hp': 7, 'pow': 4, 'skl': 2, 'spd': 1, 'dfn': 5}),
+}
+PROMOTE_LEVEL = 10          # 达到此等级可转职
+SEAL_NAME = '转职证'
 
 # --- 规则参数 ---
 EXP_HIT, EXP_KILL, EXP_BOSS_KILL = 10, 40, 80   # 命中/击杀/击杀Boss 经验

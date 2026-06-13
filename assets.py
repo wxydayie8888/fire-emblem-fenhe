@@ -42,6 +42,15 @@ UNIT_SPRITES = {
     'dark_mage': ('Humanoid', 1, 10),  # 蓝黑袍暗魔道
     'pirate':   ('Player', 3, 0),      # 红头巾海盗
     'dragon':   ('Reptile', 0, 2),     # 黑色邪龙
+    # 高级职（转职后；沿用基础职造型，靠闪光+属性体现进阶）
+    'great_lord':  ('Player', 4, 0),
+    'paladin':     ('Humanoid', 3, 13),
+    'sniper':      ('Player', 2, 3),
+    'sage':        ('Player', 3, 4),
+    'swordmaster': ('Humanoid', 0, 4),
+    'bishop':      ('Player', 1, 4),
+    'falcon':      ('Avian', 5, 0),
+    'marshal':     ('Humanoid', 1, 17),
 }
 
 # 地形底层图块 (sheet, col, row)；{f} 会替换为动画帧号(0/1)

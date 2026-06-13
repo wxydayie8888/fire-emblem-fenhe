@@ -135,3 +135,62 @@ def test_battle_dict_keeps_player_state():
     u.potions = 1
     r = Unit.from_battle_dict(u.to_battle_dict())
     assert r.level == 2 and r.acted and r.potions == 1 and r.team == 'player'
+
+
+def test_can_promote_requires_level_10():
+    u = make_lord()
+    assert not u.can_promote()              # Lv1
+    u.level = 10
+    assert u.can_promote()
+    u.level = 21
+    assert u.can_promote()
+
+
+def test_promote_applies_gains_and_class():
+    import settings
+    u = make_lord()
+    u.level = 12
+    before = (u.max_hp, u.pow, u.dfn)
+    adv, gains = settings.PROMOTIONS['lord']
+    u.promote()
+    assert u.cls == adv                      # 职业切换
+    assert u.is_promoted()
+    assert not u.can_promote()               # 不可重复转职
+    assert u.max_hp == before[0] + gains['hp']
+    assert u.pow == before[1] + gains['pow']
+    assert u.dfn == before[2] + gains['dfn']
+    assert u.hp == u.max_hp                   # 转职回满
+    assert u.cls_name == settings.CLASSES[adv]['name']
+    assert u.growth == settings.CLASSES[adv]['growth']   # 成长率换为高级职
+
+
+def test_promote_noop_when_ineligible():
+    u = make_lord()                          # Lv1，未达转职等级
+    assert u.promote() is False
+    assert u.cls == 'lord'
+
+
+def test_promoted_state_survives_save():
+    import settings
+    u = make_lord()
+    u.level = 14
+    u.promote()
+    d = u.to_dict()
+    r = Unit.from_dict(d)
+    assert r.cls == settings.PROMOTIONS['lord'][0]
+    assert r.is_promoted() and not r.can_promote()
+    assert r.weapon == settings.CLASSES[r.cls]['weapon']
+
+
+def test_sage_and_bishop_can_heal_and_attack():
+    import combat, settings
+    sage = Unit('莉莉娜', 'mage', 'player', (0, 0)); sage.level = 11; sage.promote()
+    assert sage.cls == 'sage'
+    assert combat.can_attack(sage)            # 贤者能攻击
+    assert sage.can_heal()                    # 也能治疗
+    bishop = Unit('西娅', 'cleric', 'player', (0, 0)); bishop.level = 11; bishop.promote()
+    assert bishop.cls == 'bishop'
+    assert combat.can_attack(bishop)          # 主教能攻击(光魔)
+    assert bishop.can_heal()
+    cle = Unit('西娅2', 'cleric', 'player', (0, 0))
+    assert cle.can_heal() and not combat.can_attack(cle)   # 修女只能治疗
