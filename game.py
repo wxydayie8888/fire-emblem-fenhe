@@ -89,6 +89,7 @@ class Game:
         self.tower_mut = None                  # 本层词条
         self.reward_cards, self.reward_sel, self.reward_rects = [], 0, []
         self.tower_sel, self.tower_rects = 0, []   # 元强化界面
+        self.music_sel, self.music_rects = 0, []   # 音乐鉴赏室
         self.save_slot = 1                     # 上次手动存档使用的槽
         self.state = 'TITLE'
 
@@ -815,6 +816,13 @@ class Game:
 
     # ---------- 试炼之塔（无尽 roguelite）----------
 
+    def open_music_room(self):
+        """音乐鉴赏室：逐曲试听全部配乐。"""
+        sfx.play('confirm')
+        self.music_sel = 0
+        self.state = 'MUSIC'
+        music.director.update(music.TRACK_LIST[0][0])   # 进入即放第一首
+
     def open_tower_hub(self):
         """标题进入试炼大厅（看最高层/晶核、买永久强化、出发）。"""
         sfx.play('confirm')
@@ -1244,6 +1252,10 @@ class Game:
                 for i, r in enumerate(self.tower_rects):
                     if r.collidepoint(event.pos):
                         self.tower_sel = i
+            elif self.state == 'MUSIC':
+                for i, r in enumerate(self.music_rects):
+                    if r.collidepoint(event.pos):
+                        self.music_sel = i
             return
 
         click = event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
@@ -1275,6 +1287,8 @@ class Game:
                         sfx.play('confirm')
                         self.guide_page = 0
                         self.state = 'GUIDE'
+                    elif i == 7:
+                        self.open_music_room()
                     return
             return
         if self.state == 'NEWGAME':
@@ -1542,6 +1556,24 @@ class Game:
             if click or key in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_ESCAPE):
                 self.full_reset()
             return
+        if self.state == 'MUSIC':
+            rclick = event.type == pygame.MOUSEBUTTONDOWN and event.button == 3
+            n = len(music.TRACK_LIST)
+            if key == pygame.K_ESCAPE or rclick:
+                sfx.play('cancel')
+                self.state = 'TITLE'              # _update_music 自动切回标题曲
+            elif key in (pygame.K_UP, pygame.K_DOWN):
+                self.music_sel = (self.music_sel + (1 if key == pygame.K_DOWN else -1)) % n
+                sfx.play('select')
+            elif key in (pygame.K_RETURN, pygame.K_SPACE):
+                music.director.update(music.TRACK_LIST[self.music_sel][0])
+            elif click:
+                for i, r in enumerate(self.music_rects):
+                    if r.collidepoint(event.pos):
+                        self.music_sel = i
+                        music.director.update(music.TRACK_LIST[i][0])
+                        return
+            return
         if self.state == 'CLEAR':
             if click or key in (pygame.K_RETURN, pygame.K_SPACE):
                 sfx.play('confirm')
@@ -1777,6 +1809,8 @@ class Game:
         """每帧驱动音乐总监：CINEMA 用 AI 交响乐，其余按状态/章节情绪切曲。"""
         if self.state == 'CINEMA':
             return                         # 由 enter/exit 钩子控制 mixer.music
+        if self.state == 'MUSIC':
+            return                         # 鉴赏室自行驱动总监，勿覆盖选曲
         music.director.update(
             music.track_for(self.state, self.chapter_idx,
                             enemy_phase=(self.state == 'ENEMY_TURN'),
@@ -1795,7 +1829,7 @@ class Game:
         if self.state in ('TITLE', 'INTRO', 'COMPLETE', 'PROLOGUE', 'DIALOGUE',
                           'CODEX', 'DETAIL', 'GUIDE', 'CONVO', 'NEWGAME', 'OPTIONS',
                           'SAVE_MENU', 'LOAD_MENU', 'ROSTER', 'SHOP', 'SHOP_PICK',
-                          'REWARD', 'TOWER_META', 'TOWER_OVER'):
+                          'REWARD', 'TOWER_META', 'TOWER_OVER', 'MUSIC'):
             return
         if (self.ff or config.get('skip_anim')) and self.state in ('ENEMY_TURN', 'COMBAT'):
             dt *= 3                    # 空格按住 / 选项「跳过战斗动画」：快进
@@ -1926,7 +1960,8 @@ class Game:
                      ('试炼之塔', True),
                      ('选项设置', True),
                      ('人物图鉴', True),
-                     ('攻略看板', True)]
+                     ('攻略看板', True),
+                     ('音乐鉴赏', True)]
             summary = None
             if self.save_data is not None:
                 sd = self.save_data
@@ -1986,6 +2021,11 @@ class Game:
             return
         if self.state == 'TOWER_OVER':
             ui.draw_tower_over(surf, self.tower_over_floor, self.records)
+            return
+        if self.state == 'MUSIC':
+            self.music_rects = ui.draw_music_room(
+                surf, music.TRACK_LIST, self.music_sel, music.current(),
+                bg=assets.cinema('keyart_title'))
             return
         if self.state == 'COMPLETE':
             ui.draw_complete(surf, self.roster, story.FATES)

@@ -275,19 +275,23 @@ def draw_title_menu(surf, items, summary, bg=None):
         surf.blit(veil, (0, 0))
     else:
         surf.fill((16, 14, 24))
-    _text(surf, '火 焰 纹 章', 64, (SCREEN_W // 2, 130), COL_GOLD, center=True)
-    _text(surf, '— 芬 河 战 记 —', 24, (SCREEN_W // 2, 195), COL_TEXT, center=True)
+    _text(surf, '火 焰 纹 章', 60, (SCREEN_W // 2, 116), COL_GOLD, center=True)
+    _text(surf, '— 芬 河 战 记 —', 23, (SCREEN_W // 2, 176), COL_TEXT, center=True)
     if summary:
-        _text(surf, summary, 14, (SCREEN_W // 2, 362), COL_DIM, center=True)
+        _text(surf, summary, 14, (SCREEN_W // 2, 212), COL_DIM, center=True)
     rects = []
-    y = 386
+    n = max(1, len(items))
+    y0, bottom = 244, SCREEN_H - 78               # 自适应：在概要与底部战绩间排布
+    step = min(54, max(40, (bottom - y0) // n))
+    h = min(42, step - 8)
+    y = y0
     for label, enabled in items:
-        r = pygame.Rect(SCREEN_W // 2 - 110, y, 220, 42)
+        r = pygame.Rect(SCREEN_W // 2 - 110, y, 220, h)
         pygame.draw.rect(surf, COL_PANEL_LIGHT if enabled else COL_PANEL, r, border_radius=8)
         pygame.draw.rect(surf, COL_BORDER if enabled else (70, 70, 84), r, 2, border_radius=8)
         _text(surf, label, 20, r.center, COL_TEXT if enabled else (90, 90, 100), center=True)
         rects.append(r)
-        y += 54
+        y += step
     _text(surf, '左键 选择/确认 · 右键 取消 · E 结束回合 · I 单位详情', 13,
           (SCREEN_W // 2, SCREEN_H - 22), (110, 110, 125), center=True)
     return rects
@@ -640,6 +644,40 @@ def draw_tower_meta(surf, records, upgrades, cost_fn, sel, bg=None):
     rects.append(sr)
     _text(surf, '↑↓ 选择 · 回车 购买/出发 · ESC 返回', 14,
           (SCREEN_W // 2, SCREEN_H - 32), COL_DIM, center=True)
+    return rects
+
+
+_MUSIC_CAT_COLOR = {'标题': (250, 210, 90), '剧情': (170, 200, 235), '战场': (150, 220, 160),
+                    '敌方': (235, 130, 120), '挑战': (210, 160, 235), '胜负': (230, 200, 130)}
+
+
+def draw_music_room(surf, tracks, sel, current, bg=None):
+    """音乐鉴赏室：逐曲试听。返回各曲 rect。"""
+    _keyart(surf, bg)
+    _text(surf, '音 乐 鉴 赏 室', 38, (SCREEN_W // 2, 52), COL_GOLD, center=True)
+    rects = []
+    y = 110
+    for i, (key, name, cat) in enumerate(tracks):
+        r = pygame.Rect(SCREEN_W // 2 - 262, y, 524, 40)
+        active = i == sel
+        playing = key == current
+        pygame.draw.rect(surf, COL_PANEL_LIGHT if active else COL_PANEL, r, border_radius=7)
+        pygame.draw.rect(surf, COL_GOLD if active else COL_BORDER, r, 2 if active else 1,
+                         border_radius=7)
+        cc = _MUSIC_CAT_COLOR.get(cat, COL_DIM)
+        chip = pygame.Rect(r.x + 12, r.y + 9, 50, 22)
+        pygame.draw.rect(surf, (cc[0] // 4, cc[1] // 4, cc[2] // 4), chip, border_radius=5)
+        pygame.draw.rect(surf, cc, chip, 1, border_radius=5)
+        _text(surf, cat, 13, chip.center, cc, center=True)
+        _text(surf, name, 19, (r.x + 78, r.y + 9), COL_GOLD if playing else COL_TEXT)
+        if playing:                                  # 播放中：金色三角 + 文字
+            tx, ty = r.right - 96, r.y + 12
+            pygame.draw.polygon(surf, COL_GOLD, [(tx, ty), (tx, ty + 14), (tx + 12, ty + 7)])
+            _text(surf, '播放中', 14, (tx + 18, ty - 1), COL_GOLD)
+        rects.append(r)
+        y += 42
+    _text(surf, '↑↓ 选择 · 回车/点击 试听 · ESC 返回', 14,
+          (SCREEN_W // 2, SCREEN_H - 30), COL_DIM, center=True)
     return rects
 
 
