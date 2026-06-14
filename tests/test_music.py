@@ -50,6 +50,10 @@ def test_track_for_mapping():
     assert music.track_for('IDLE', 0, enemy_phase=True) == 'enemy_light'
     assert music.track_for('IDLE', 5, enemy_phase=True) == 'enemy_mid'
     assert music.track_for('IDLE', 9, enemy_phase=True) == 'enemy_dark'
+    # 试炼之塔：攻防同曲，且盖过分区主题
+    assert music.track_for('IDLE', 0, tower=True) == 'tower'
+    assert music.track_for('ENEMY_TURN', 0, enemy_phase=True, tower=True) == 'tower'
+    assert music.track_for('TOWER_META', tower=True) == 'title'   # 大厅仍用标题曲
 
 
 def test_graceful_without_audio():

@@ -1779,7 +1779,8 @@ class Game:
             return                         # 由 enter/exit 钩子控制 mixer.music
         music.director.update(
             music.track_for(self.state, self.chapter_idx,
-                            enemy_phase=(self.state == 'ENEMY_TURN')))
+                            enemy_phase=(self.state == 'ENEMY_TURN'),
+                            tower=self.tower))
 
     def update(self, dt):
         self.time += dt
