@@ -648,17 +648,22 @@ def draw_tower_meta(surf, records, upgrades, cost_fn, sel, bg=None):
 
 
 _MUSIC_CAT_COLOR = {'标题': (250, 210, 90), '剧情': (170, 200, 235), '战场': (150, 220, 160),
-                    '敌方': (235, 130, 120), '挑战': (210, 160, 235), '胜负': (230, 200, 130)}
+                    '敌方': (235, 130, 120), '挑战': (210, 160, 235), '胜负': (230, 200, 130),
+                    '决战': (240, 100, 95), '尾声': (235, 205, 150)}
 
 
 def draw_music_room(surf, tracks, sel, current, bg=None):
     """音乐鉴赏室：逐曲试听。返回各曲 rect。"""
     _keyart(surf, bg)
-    _text(surf, '音 乐 鉴 赏 室', 38, (SCREEN_W // 2, 52), COL_GOLD, center=True)
+    _text(surf, '音 乐 鉴 赏 室', 36, (SCREEN_W // 2, 46), COL_GOLD, center=True)
     rects = []
-    y = 110
+    n = max(1, len(tracks))
+    y0 = 92
+    step = min(42, max(34, (SCREEN_H - 60 - y0) // n))
+    h = step - 4
+    y = y0
     for i, (key, name, cat) in enumerate(tracks):
-        r = pygame.Rect(SCREEN_W // 2 - 262, y, 524, 40)
+        r = pygame.Rect(SCREEN_W // 2 - 262, y, 524, h)
         active = i == sel
         playing = key == current
         pygame.draw.rect(surf, COL_PANEL_LIGHT if active else COL_PANEL, r, border_radius=7)
@@ -675,9 +680,9 @@ def draw_music_room(surf, tracks, sel, current, bg=None):
             pygame.draw.polygon(surf, COL_GOLD, [(tx, ty), (tx, ty + 14), (tx + 12, ty + 7)])
             _text(surf, '播放中', 14, (tx + 18, ty - 1), COL_GOLD)
         rects.append(r)
-        y += 42
+        y += step
     _text(surf, '↑↓ 选择 · 回车/点击 试听 · ESC 返回', 14,
-          (SCREEN_W // 2, SCREEN_H - 30), COL_DIM, center=True)
+          (SCREEN_W // 2, SCREEN_H - 28), COL_DIM, center=True)
     return rects
 
 

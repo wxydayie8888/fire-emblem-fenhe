@@ -322,7 +322,7 @@ class Game:
         sd = self.undo_stack.pop()
         self.undo_left -= 1
         self._apply_payload(sd)
-        sfx.play('cancel')
+        sfx.play('rewind')
         self.show_banner(f'时 光 回 溯（剩 {self.undo_left} 次）', (170, 140, 255))
         self.state = 'IDLE'
 
@@ -568,6 +568,7 @@ class Game:
         self.fortress_heal('enemy')
         if self.spawn_reinforcements():
             self.show_banner('敌 方 增 援 ！', ui.COL_ENEMY)
+            sfx.play('reinforce')
         else:
             self.show_banner('敌方行动', ui.COL_ENEMY)
         sfx.play('turn')
@@ -658,7 +659,7 @@ class Game:
         if item['kind'] == 'seal':
             self.gold -= item['cost']
             self.seals += 1
-            sfx.play('confirm')
+            sfx.play('coin')
             self.autosave()
         elif item['kind'] == 'seed':
             if not self.alive('player') and not self.roster:
@@ -682,7 +683,7 @@ class Game:
             setattr(unit, stat, getattr(unit, stat) + gain)
         self.gold -= item['cost']
         self.shop_pending = None
-        sfx.play('levelup')
+        sfx.play('coin')
         self.autosave()
         self.state = 'SHOP'
 
@@ -1031,7 +1032,7 @@ class Game:
         if 'seal' in r:
             self.seals += r['seal']
             msg.append(f'转职证 +{r["seal"]}')
-        sfx.play('heal')
+        sfx.play('chest')
         verb = '宝箱' if ev['kind'] == 'chest' else '村庄'
         self.add_float('  '.join(msg) or verb, (unit.x, unit.y), ui.COL_GOLD)
         self.show_banner(f'{verb}：{"  ".join(msg)}', ui.COL_GOLD)
@@ -1067,7 +1068,7 @@ class Game:
         old = unit.cls_name
         unit.promote()
         self.flash_t = 0.35
-        sfx.play('levelup')
+        sfx.play('promote')
         self.add_float('转职!', (unit.x, unit.y), ui.COL_GOLD)
         self.show_banner(f'{unit.name}  {old} → {unit.cls_name}！', ui.COL_GOLD)
         self.finish_unit()
@@ -1131,6 +1132,7 @@ class Game:
                 a.uses -= 1
                 if a.uses == 0 and a.alive and a.team == 'player':
                     self.add_float('武器破损', (a.x, a.y), ui.COL_GOLD)
+                    sfx.play('break')
         # 被打的驻守敌人被激活
         for ev in self.combat_events:
             t = ev['target']
@@ -1814,7 +1816,8 @@ class Game:
         music.director.update(
             music.track_for(self.state, self.chapter_idx,
                             enemy_phase=(self.state == 'ENEMY_TURN'),
-                            tower=self.tower))
+                            tower=self.tower,
+                            boss_engaged=(self.boss_quote_shown and not self.tower)))
 
     def update(self, dt):
         self.time += dt
@@ -1888,6 +1891,9 @@ class Game:
                     sfx.play('crit')
                     self.flash_t = 0.12
                     self.add_float('必杀!', (ev['actor'].x, ev['actor'].y), ui.COL_GOLD)
+                elif combat.is_effective(ev['actor'], target):
+                    sfx.play('effective')           # 特效克制：金属斩鸣
+                    self.add_float('特效!', (ev['actor'].x, ev['actor'].y), (255, 150, 90))
                 else:
                     sfx.play('hit')
                 self.add_float(str(ev['dmg']), (target.x, target.y), (255, 240, 120))

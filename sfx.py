@@ -18,13 +18,13 @@ def set_volume(frac):
     _vol = max(0.0, min(1.0, frac))
 
 
-def _tone(freqs, dur, vol=0.5, shape='square', fade=True):
-    """freqs: 单频或 (起始,结束) 扫频；shape: square/sine/noise"""
+def _tone(freqs, dur, vol=0.5, shape='square', fade=True, seed=7):
+    """freqs: 单频或 (起始,结束) 扫频；shape: square/sine/noise；seed: 噪声种子。"""
     import numpy as np
     n = int(SAMPLE_RATE * dur)
     t = np.arange(n) / SAMPLE_RATE
     if shape == 'noise':
-        wave = np.random.default_rng(7).uniform(-1, 1, n)
+        wave = np.random.default_rng(seed).uniform(-1, 1, n)
     else:
         if isinstance(freqs, tuple):
             f0, f1 = freqs
@@ -47,24 +47,56 @@ def _concat(*parts):
     return np.concatenate(parts)
 
 
+def _mix(*parts):
+    """叠加多层（取最长，逐元素相加）→ 更厚实的音色。"""
+    import numpy as np
+    n = max(len(p) for p in parts)
+    out = np.zeros(n)
+    for p in parts:
+        out[:len(p)] += p
+    return out
+
+
 def _build():
     import numpy as np
     snd = {}
+    # --- 基础交互 ---
     snd['select'] = _tone(880, 0.05, 0.25)
     snd['confirm'] = _concat(_tone(660, 0.05, 0.3), _tone(990, 0.07, 0.3))
     snd['cancel'] = _tone((440, 280), 0.08, 0.3)
-    snd['hit'] = _concat(_tone((220, 110), 0.06, 0.5), _tone(80, 0.06, 0.4, 'noise'))
-    snd['crit'] = _concat(_tone(80, 0.10, 0.55, 'noise'), _tone((1320, 1760), 0.12, 0.4))
+    snd['turn'] = _concat(_tone(440, 0.06, 0.25), _tone(587, 0.10, 0.25))
+    # --- 战斗 ---
+    snd['hit'] = _mix(_tone((260, 90), 0.07, 0.5), _tone(70, 0.07, 0.45, 'noise'))   # 钝击叠噪
+    snd['crit'] = _concat(_mix(_tone(90, 0.05, 0.6, 'noise'), _tone((200, 90), 0.05, 0.5)),
+                          _mix(_tone((1320, 1980), 0.16, 0.4), _tone((660, 990), 0.16, 0.22)))
+    snd['effective'] = _concat(_tone((1568, 2349), 0.07, 0.4, 'sine'),                 # 特效：金属斩鸣
+                               _mix(_tone(60, 0.12, 0.6, 'noise', seed=5), _tone((420, 160), 0.12, 0.45)),
+                               _tone((1760, 1175), 0.14, 0.3, 'sine'))
     snd['miss'] = _tone((900, 200), 0.12, 0.2, 'sine')
+    snd['die'] = _tone((300, 70), 0.28, 0.4, 'sine')
+    snd['break'] = _concat(_tone(200, 0.03, 0.55, 'noise', seed=3),                    # 武器破损：脆裂
+                           _tone((520, 140), 0.10, 0.4), _tone(110, 0.06, 0.3, 'noise', seed=9))
     snd['heal'] = _concat(_tone(784, 0.07, 0.3, 'sine'), _tone(1175, 0.12, 0.3, 'sine'))
+    # --- 成长 / 奖励 ---
     snd['levelup'] = _concat(_tone(523, 0.09, 0.35), _tone(659, 0.09, 0.35),
                              _tone(784, 0.09, 0.35), _tone(1047, 0.22, 0.4))
+    snd['promote'] = _concat(_tone(523, 0.07, 0.3), _tone(659, 0.07, 0.3), _tone(784, 0.07, 0.3),
+                             _tone(1047, 0.09, 0.35), _tone(1319, 0.09, 0.35),
+                             _mix(_tone(1568, 0.35, 0.4, 'sine'), _tone(2093, 0.35, 0.22, 'sine')))
+    snd['coin'] = _concat(_tone(1319, 0.05, 0.3, 'sine'), _tone(1760, 0.10, 0.3, 'sine'))
+    snd['chest'] = _concat(_tone(880, 0.05, 0.25, 'sine'), _tone(1109, 0.05, 0.25, 'sine'),
+                           _tone(1319, 0.05, 0.25, 'sine'),
+                           _mix(_tone(1760, 0.18, 0.3, 'sine'), _tone(2637, 0.18, 0.16, 'sine')))
+    # --- 系统 / 战场事件 ---
+    snd['rewind'] = _mix(_tone((1320, 440), 0.28, 0.3, 'sine'), _tone((660, 1320), 0.28, 0.2, 'sine'),
+                         _tone((990, 495), 0.28, 0.14, 'sine'))
+    snd['reinforce'] = _concat(_mix(_tone(110, 0.16, 0.45), _tone(131, 0.16, 0.32)),    # 增援：低沉号角警讯
+                               _mix(_tone(110, 0.30, 0.45), _tone(165, 0.30, 0.3)))
+    # --- 胜负 ---
     snd['victory'] = _concat(_tone(523, 0.12, 0.4), _tone(523, 0.06, 0.35), _tone(659, 0.12, 0.4),
                              _tone(784, 0.12, 0.4), _tone(1047, 0.30, 0.45))
     snd['defeat'] = _concat(_tone(392, 0.18, 0.4, 'sine'), _tone(330, 0.18, 0.4, 'sine'),
                             _tone(262, 0.35, 0.4, 'sine'))
-    snd['turn'] = _concat(_tone(440, 0.06, 0.25), _tone(587, 0.10, 0.25))
-    snd['die'] = _tone((300, 70), 0.28, 0.4, 'sine')
     return {k: (np.clip(v, -1, 1) * 32767).astype(np.int16) for k, v in snd.items()}
 
 

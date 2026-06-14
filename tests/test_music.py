@@ -39,6 +39,9 @@ def test_track_for_mapping():
     assert music.track_for('DIALOGUE') == 'story'
     assert music.track_for('END') == 'defeat'
     assert music.track_for('CLEAR') == 'victory'
+    assert music.track_for('COMPLETE') == 'finale'                       # 战役通关：尾声
+    assert music.track_for('IDLE', 9, boss_engaged=True) == 'boss'       # 与首领交战：决战曲
+    assert music.track_for('ENEMY_TURN', 9, enemy_phase=True, boss_engaged=True) == 'enemy_dark'
     # 章节分区主题（每 2 章换一首，共 5 个）
     assert music.track_for('IDLE', 0) == 'map_hope'
     assert music.track_for('IDLE', 2) == 'map_valor'
